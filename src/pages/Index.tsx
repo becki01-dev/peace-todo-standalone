@@ -55,7 +55,7 @@ const Index = () => {
     description: string;
     priority: Priority;
     due_date: Date | null;
-  }) => {
+  }): Promise<void> => {
     if (!user) return;
     const payload = {
       title: data.title,
@@ -66,11 +66,17 @@ const Index = () => {
 
     if (editing) {
       const { error } = await supabase.from("tasks").update(payload).eq("id", editing.id);
-      if (error) return toast.error("更新失败");
+      if (error) {
+        toast.error("更新失败");
+        return;
+      }
       toast.success("任务已更新");
     } else {
       const { error } = await supabase.from("tasks").insert({ ...payload, user_id: user.id });
-      if (error) return toast.error("创建失败");
+      if (error) {
+        toast.error("创建失败");
+        return;
+      }
       toast.success("任务已添加");
     }
     setEditing(null);
