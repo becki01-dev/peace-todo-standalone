@@ -1,0 +1,92 @@
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Flame } from "lucide-react";
+import { toast } from "sonner";
+
+const FitAuth = () => {
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const [mode, setMode] = useState<"signin" | "signup">("signin");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (user) navigate("/fit", { replace: true });
+  }, [user, navigate]);
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    if (mode === "signup") {
+      const { error } = await supabase.auth.signUp({
+        email, password,
+        options: { emailRedirectTo: `${window.location.origin}/fit` },
+      });
+      if (error) toast.error(error.message);
+      else toast.success("注册成功,开始记录!");
+    } else {
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) toast.error(error.message);
+    }
+    setLoading(false);
+  };
+
+  return (
+    <div className="min-h-screen bg-fit-bg flex items-center justify-center p-4">
+      <div className="w-full max-w-sm">
+        <div className="flex flex-col items-center mb-8">
+          <div className="w-14 h-14 rounded-2xl bg-fit-accent text-fit-accent-foreground flex items-center justify-center mb-3 shadow-fit-glow">
+            <Flame className="w-7 h-7" strokeWidth={2.5} />
+          </div>
+          <h1 className="text-2xl font-bold text-fit-foreground">ZenFit</h1>
+          <p className="text-sm text-fit-muted mt-1">硬核记录每一滴汗水</p>
+        </div>
+
+        <form onSubmit={submit} className="space-y-3 p-6 rounded-2xl bg-fit-card border border-fit-border">
+          <Input
+            type="email"
+            placeholder="邮箱"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            className="bg-fit-surface border-fit-border text-fit-foreground"
+          />
+          <Input
+            type="password"
+            placeholder="密码 (至少6位)"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            minLength={6}
+            className="bg-fit-surface border-fit-border text-fit-foreground"
+          />
+          <Button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-fit-accent text-fit-accent-foreground hover:bg-fit-accent/90 font-semibold"
+          >
+            {loading ? "..." : mode === "signin" ? "登录" : "注册"}
+          </Button>
+          <button
+            type="button"
+            onClick={() => setMode(mode === "signin" ? "signup" : "signin")}
+            className="w-full text-xs text-fit-muted hover:text-fit-accent transition-smooth pt-1"
+          >
+            {mode === "signin" ? "没有账号? 立即注册" : "已有账号? 登录"}
+          </button>
+        </form>
+
+        <p className="text-center mt-6">
+          <a href="/" className="text-xs text-fit-muted hover:text-fit-accent">← 返回 ZenTask</a>
+        </p>
+      </div>
+    </div>
+  );
+};
+
+export default FitAuth;
