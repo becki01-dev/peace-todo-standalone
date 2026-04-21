@@ -52,7 +52,7 @@ const NavItem = ({
   label,
   active,
 }: {
-  icon: React.ComponentType<{ className?: string; strokeWidth?: number }>;
+  icon: LucideIcon;
   label: string;
   active: boolean;
 }) => (

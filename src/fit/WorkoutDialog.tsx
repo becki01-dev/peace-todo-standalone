@@ -297,7 +297,7 @@ const TypeButton = ({
   label,
   onClick,
 }: {
-  icon: React.ComponentType<{ className?: string; strokeWidth?: number }>;
+  icon: LucideIcon;
   label: string;
   onClick: () => void;
 }) => (
