@@ -1,5 +1,5 @@
 import { NavLink, useLocation } from "react-router-dom";
-import { History, BarChart3, Settings, Plus } from "lucide-react";
+import { History, BarChart3, Settings, Plus, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const items = [

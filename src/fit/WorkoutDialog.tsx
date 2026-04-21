@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
-import { Footprints, Waves, Dumbbell } from "lucide-react";
+import { Footprints, Waves, Dumbbell, type LucideIcon } from "lucide-react";
 import { WorkoutType, DistanceUnit, PoolUnit, WeightUnit } from "./types";
 import {
   distanceInputToMeters,

@@ -7,6 +7,11 @@ import { AuthProvider } from "@/hooks/useAuth";
 import Index from "./pages/Index.tsx";
 import Auth from "./pages/Auth.tsx";
 import NotFound from "./pages/NotFound.tsx";
+import FitLayout from "./fit/FitLayout";
+import FitAuth from "./fit/pages/FitAuth";
+import FitHistoryRoute from "./fit/pages/FitHistoryRoute";
+import FitStats from "./fit/pages/FitStats";
+import FitSettings from "./fit/pages/FitSettings";
 
 const queryClient = new QueryClient();
 
@@ -20,6 +25,12 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/auth" element={<Auth />} />
+            <Route path="/fit/auth" element={<FitAuth />} />
+            <Route path="/fit" element={<FitLayout />}>
+              <Route index element={<FitHistoryRoute />} />
+              <Route path="stats" element={<FitStats />} />
+              <Route path="settings" element={<FitSettings />} />
+            </Route>
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

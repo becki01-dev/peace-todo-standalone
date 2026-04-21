@@ -62,6 +62,17 @@
     --sidebar-accent-foreground: 240 5.9% 10%;
     --sidebar-border: 220 13% 91%;
     --sidebar-ring: 217.2 91.2% 59.8%;
+
+    /* ZenFit hardcore dark theme */
+    --fit-bg: 220 26% 9%;          /* #111827 */
+    --fit-card: 220 22% 13%;
+    --fit-surface: 220 20% 17%;
+    --fit-border: 220 15% 22%;
+    --fit-foreground: 210 40% 98%;
+    --fit-muted: 220 10% 60%;
+    --fit-accent: 84 100% 59%;     /* #ADFF2F GreenYellow */
+    --fit-accent-foreground: 220 26% 9%;
+    --shadow-fit-glow: 0 0 24px hsl(84 100% 59% / 0.35), 0 4px 16px hsl(84 100% 59% / 0.2);
   }
 
   .dark {
@@ -164,4 +175,18 @@
 
 .animate-scale-in {
   animation: scaleIn 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@layer utilities {
+  .shadow-fit-glow {
+    box-shadow: var(--shadow-fit-glow);
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+  .fit-bottom-nav {
+    background: hsl(var(--fit-card) / 0.92);
+    backdrop-filter: blur(16px);
+    border-top: 1px solid hsl(var(--fit-border));
+  }
 }

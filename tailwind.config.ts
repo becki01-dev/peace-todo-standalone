@@ -56,6 +56,16 @@ export default {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        "fit-bg": "hsl(var(--fit-bg))",
+        "fit-card": "hsl(var(--fit-card))",
+        "fit-surface": "hsl(var(--fit-surface))",
+        "fit-border": "hsl(var(--fit-border))",
+        "fit-foreground": "hsl(var(--fit-foreground))",
+        "fit-muted": "hsl(var(--fit-muted))",
+        "fit-accent": {
+          DEFAULT: "hsl(var(--fit-accent))",
+          foreground: "hsl(var(--fit-accent-foreground))",
+        },
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",
           foreground: "hsl(var(--sidebar-foreground))",
