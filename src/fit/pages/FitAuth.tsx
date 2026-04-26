@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
@@ -7,17 +7,23 @@ import { Input } from "@/components/ui/input";
 import { Flame } from "lucide-react";
 import { toast } from "sonner";
 
+type AuthLocationState = {
+  from?: string;
+};
+
 const FitAuth = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useAuth();
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const from = (location.state as AuthLocationState | null)?.from ?? "/fit";
 
   useEffect(() => {
-    if (user) navigate("/fit", { replace: true });
-  }, [user, navigate]);
+    if (user) navigate(from, { replace: true });
+  }, [user, navigate, from]);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -25,7 +31,7 @@ const FitAuth = () => {
     if (mode === "signup") {
       const { error } = await supabase.auth.signUp({
         email, password,
-        options: { emailRedirectTo: `${window.location.origin}/fit` },
+        options: { emailRedirectTo: `${window.location.origin}/auth` },
       });
       if (error) toast.error(error.message);
       else toast.success("注册成功,开始记录!");
@@ -82,7 +88,7 @@ const FitAuth = () => {
         </form>
 
         <p className="text-center mt-6">
-          <a href="/" className="text-xs text-fit-muted hover:text-fit-accent">← 返回 ZenTask</a>
+          <Link to="/" className="text-xs text-fit-muted hover:text-fit-accent">← 返回主页</Link>
         </p>
       </div>
     </div>

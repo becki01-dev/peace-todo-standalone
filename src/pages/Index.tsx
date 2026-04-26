@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Task, TaskFilter, Priority } from "@/types/task";
@@ -7,7 +7,7 @@ import { TaskItem } from "@/components/TaskItem";
 import { TaskDialog } from "@/components/TaskDialog";
 import { EmptyState } from "@/components/EmptyState";
 import { Button } from "@/components/ui/button";
-import { Plus, LogOut, CheckCircle2, Trash } from "lucide-react";
+import { Plus, LogOut, CheckCircle2, Trash, ChevronLeft } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -19,6 +19,7 @@ const FILTERS: { value: TaskFilter; label: string }[] = [
 
 const Index = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, loading: authLoading, signOut } = useAuth();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
@@ -27,13 +28,20 @@ const Index = () => {
   const [editing, setEditing] = useState<Task | null>(null);
 
   useEffect(() => {
-    if (!authLoading && !user) navigate("/auth", { replace: true });
-  }, [user, authLoading, navigate]);
+    if (!authLoading && !user) {
+      navigate("/auth", { replace: true, state: { from: `${location.pathname}${location.search}` } });
+    }
+  }, [user, authLoading, navigate, location.pathname, location.search]);
 
   useEffect(() => {
     if (!user) return;
     fetchTasks();
   }, [user]);
+
+  useEffect(() => {
+    localStorage.setItem("zen:lastModule", "task");
+    localStorage.setItem("zen:lastHint", "上次你在整理待办，点击快速继续");
+  }, []);
 
   const fetchTasks = async () => {
     setLoading(true);
@@ -135,6 +143,13 @@ const Index = () => {
       <header className="sticky top-0 z-20 bg-background/80 backdrop-blur-xl border-b border-border/40">
         <div className="max-w-2xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
+            <Link
+              to="/"
+              className="inline-flex items-center text-xs text-muted-foreground hover:text-foreground transition-smooth mr-1"
+            >
+              <ChevronLeft className="w-3.5 h-3.5 mr-0.5" />
+              返回主页
+            </Link>
             <div className="w-9 h-9 rounded-xl bg-accent flex items-center justify-center">
               <CheckCircle2 className="w-5 h-5 text-accent-foreground" strokeWidth={2.5} />
             </div>
