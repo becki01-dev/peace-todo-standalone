@@ -1,11 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
-import { Footprints, Waves, Dumbbell, type LucideIcon } from "lucide-react";
+import { Footprints, Waves, Dumbbell, Sparkles, type LucideIcon } from "lucide-react";
 import { WorkoutType, DistanceUnit, PoolUnit, WeightUnit } from "./types";
 import {
   distanceInputToMeters,
@@ -43,9 +43,12 @@ export const WorkoutDialog = ({ open, onOpenChange, onSaved }: Props) => {
   const [mood, setMood] = useState(3);
 
   // swimming
-  const [swimDistance, setSwimDistance] = useState("");
   const [swimUnit, setSwimUnit] = useState<PoolUnit>(prefs.pool_unit);
   const [poolLen, setPoolLen] = useState("25");
+  const [laps, setLaps] = useState("40");
+  const [swimStroke, setSwimStroke] = useState("自由泳");
+  const [customSwimStroke, setCustomSwimStroke] = useState("");
+  const [swimMood, setSwimMood] = useState(3);
 
   // strength
   const [exercise, setExercise] = useState("");
@@ -64,7 +67,7 @@ export const WorkoutDialog = ({ open, onOpenChange, onSaved }: Props) => {
         setNotes("");
         setHours("0"); setMinutes(""); setSeconds("0");
         setRunDistance(""); setMood(3);
-        setSwimDistance(""); setPoolLen("25");
+        setPoolLen("25"); setLaps("40"); setSwimStroke("自由泳"); setCustomSwimStroke(""); setSwimMood(3);
         setExercise(""); setWeight(""); setIsBodyweight(false); setSets(""); setReps("");
       }, 200);
     } else {
@@ -74,11 +77,24 @@ export const WorkoutDialog = ({ open, onOpenChange, onSaved }: Props) => {
     }
   }, [open, prefs]);
 
+  const calculatedSwimDistance = useMemo(() => {
+    const pl = parseFloat(poolLen);
+    const lp = parseInt(laps);
+    if (Number.isNaN(pl) || Number.isNaN(lp) || pl <= 0 || lp <= 0) {
+      return { distanceInPoolUnit: 0, distanceMeters: 0 };
+    }
+    const distanceInPoolUnit = pl * lp;
+    return {
+      distanceInPoolUnit,
+      distanceMeters: poolInputToMeters(distanceInPoolUnit, swimUnit),
+    };
+  }, [poolLen, laps, swimUnit]);
+
   const handleSubmit = async () => {
     if (!user || !type) return;
     setSubmitting(true);
 
-    let data: Record<string, number | string> = {};
+    let data: Record<string, number | string | boolean> = {};
     if (type === "running") {
       const d = parseFloat(runDistance);
       const dur = hmsToSeconds(+hours, +minutes, +seconds);
@@ -93,17 +109,21 @@ export const WorkoutDialog = ({ open, onOpenChange, onSaved }: Props) => {
         mood,
       };
     } else if (type === "swimming") {
-      const d = parseFloat(swimDistance);
       const pl = parseFloat(poolLen);
+      const lp = parseInt(laps);
       const dur = hmsToSeconds(+hours, +minutes, +seconds);
-      if (!d || !pl || !dur) {
-        toast.error("请填写距离、泳池长度和时长");
+      const finalStroke = swimStroke === "__custom__" ? customSwimStroke.trim() : swimStroke;
+      if (!pl || !lp || !dur || !finalStroke) {
+        toast.error("请填写泳姿、泳池长度、圈数和时长");
         setSubmitting(false);
         return;
       }
       data = {
-        distance_meters: poolInputToMeters(d, swimUnit),
+        distance_meters: calculatedSwimDistance.distanceMeters,
         pool_length_meters: poolInputToMeters(pl, swimUnit),
+        laps: lp,
+        stroke: finalStroke,
+        mood: swimMood,
         duration_seconds: dur,
       };
     } else if (type === "strength") {
@@ -211,24 +231,173 @@ export const WorkoutDialog = ({ open, onOpenChange, onSaved }: Props) => {
 
             {type === "swimming" && (
               <>
-                <DistanceField
-                  label="距离"
-                  value={swimDistance}
-                  onChange={setSwimDistance}
-                  unit={swimUnit}
-                  onUnit={(u) => setSwimUnit(u as PoolUnit)}
-                  units={["m", "yd"]}
-                />
                 <div>
-                  <Label className="text-fit-muted text-xs mb-2 block">泳池长度 ({swimUnit})</Label>
-                  <Input
-                    inputMode="decimal"
-                    value={poolLen}
-                    onChange={(e) => setPoolLen(e.target.value)}
-                    className="bg-fit-surface border-fit-border text-fit-foreground"
-                  />
+                  <Label className="text-fit-muted text-xs mb-2 block">泳姿 / 训练内容</Label>
+                  <div className="flex flex-wrap gap-2">
+                    {["自由泳", "蛙泳", "仰泳", "蝶泳", "混合泳"].map((option) => (
+                      <button
+                        key={option}
+                        type="button"
+                        onClick={() => setSwimStroke(option)}
+                        className={cn(
+                          "px-3 py-1.5 rounded-md text-xs font-semibold transition-smooth border",
+                          swimStroke === option
+                            ? "bg-fit-accent text-fit-accent-foreground border-fit-accent"
+                            : "bg-fit-surface text-fit-muted border-fit-border hover:text-fit-foreground",
+                        )}
+                      >
+                        {option}
+                      </button>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={() => setSwimStroke("__custom__")}
+                      className={cn(
+                        "px-3 py-1.5 rounded-md text-xs font-semibold transition-smooth border",
+                        swimStroke === "__custom__"
+                          ? "bg-fit-accent text-fit-accent-foreground border-fit-accent"
+                          : "bg-fit-surface text-fit-muted border-fit-border hover:text-fit-foreground",
+                      )}
+                    >
+                      自定义
+                    </button>
+                  </div>
+                  {swimStroke === "__custom__" && (
+                    <Input
+                      value={customSwimStroke}
+                      onChange={(e) => setCustomSwimStroke(e.target.value)}
+                      placeholder="如: 自由泳打腿 / 窄手仰泳练习"
+                      className="mt-2 bg-fit-surface border-fit-border text-fit-foreground"
+                    />
+                  )}
                 </div>
+
+                <div>
+                  <Label className="text-fit-muted text-xs mb-2 block">泳池长度</Label>
+                  <div className="flex flex-wrap gap-2 mb-2">
+                    <button
+                      type="button"
+                      onClick={() => { setSwimUnit("m"); setPoolLen("25"); }}
+                      className={cn(
+                        "px-3 py-1.5 rounded-md text-xs font-semibold transition-smooth border",
+                        swimUnit === "m" && poolLen === "25"
+                          ? "bg-fit-accent text-fit-accent-foreground border-fit-accent"
+                          : "bg-fit-surface text-fit-muted border-fit-border hover:text-fit-foreground",
+                      )}
+                    >
+                      25m
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setSwimUnit("yd"); setPoolLen("25"); }}
+                      className={cn(
+                        "px-3 py-1.5 rounded-md text-xs font-semibold transition-smooth border",
+                        swimUnit === "yd" && poolLen === "25"
+                          ? "bg-fit-accent text-fit-accent-foreground border-fit-accent"
+                          : "bg-fit-surface text-fit-muted border-fit-border hover:text-fit-foreground",
+                      )}
+                    >
+                      25yd
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setSwimUnit("m"); setPoolLen("50"); }}
+                      className={cn(
+                        "px-3 py-1.5 rounded-md text-xs font-semibold transition-smooth border",
+                        swimUnit === "m" && poolLen === "50"
+                          ? "bg-fit-accent text-fit-accent-foreground border-fit-accent"
+                          : "bg-fit-surface text-fit-muted border-fit-border hover:text-fit-foreground",
+                      )}
+                    >
+                      50m
+                    </button>
+                  </div>
+                  <div className="flex gap-2">
+                    <Input
+                      inputMode="decimal"
+                      value={poolLen}
+                      onChange={(e) => setPoolLen(e.target.value)}
+                      className="bg-fit-surface border-fit-border text-fit-foreground flex-1"
+                    />
+                    <div className="flex bg-fit-surface border border-fit-border rounded-md p-0.5">
+                      {["m", "yd"].map((u) => (
+                        <button
+                          key={u}
+                          type="button"
+                          onClick={() => setSwimUnit(u as PoolUnit)}
+                          className={cn(
+                            "px-3 text-xs font-semibold rounded-sm transition-smooth",
+                            swimUnit === u ? "bg-fit-accent text-fit-accent-foreground" : "text-fit-muted",
+                          )}
+                        >
+                          {u}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <Label className="text-fit-muted text-xs mb-2 block">圈数</Label>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setLaps((v) => String(Math.max(1, (parseInt(v) || 1) - 1)))}
+                      className="w-10 h-10 rounded-md bg-fit-surface border border-fit-border text-fit-muted hover:text-fit-foreground transition-smooth"
+                    >
+                      -
+                    </button>
+                    <Input
+                      inputMode="numeric"
+                      value={laps}
+                      onChange={(e) => setLaps(e.target.value)}
+                      className="bg-fit-surface border-fit-border text-fit-foreground text-center"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setLaps((v) => String(Math.max(1, (parseInt(v) || 0) + 1)))}
+                      className="w-10 h-10 rounded-md bg-fit-surface border border-fit-border text-fit-muted hover:text-fit-foreground transition-smooth"
+                    >
+                      +
+                    </button>
+                  </div>
+                </div>
+
+                <div className="rounded-lg border border-fit-accent/35 bg-fit-accent/10 p-3">
+                  <div className="flex items-center gap-2 text-fit-accent text-xs font-semibold">
+                    <Sparkles className="w-4 h-4" />
+                    当前计算距离
+                  </div>
+                  <p className="mt-1 text-sm text-fit-foreground font-semibold">
+                    {Math.round(calculatedSwimDistance.distanceInPoolUnit)} {swimUnit}
+                    <span className="text-fit-muted font-normal">
+                      {" "}
+                      ({Math.round(calculatedSwimDistance.distanceMeters)} m)
+                    </span>
+                  </p>
+                </div>
+
                 <DurationField h={hours} m={minutes} s={seconds} setH={setHours} setM={setMinutes} setS={setSeconds} />
+                <div>
+                  <Label className="text-fit-muted text-xs mb-2 block">心情</Label>
+                  <div className="flex gap-2">
+                    {[1, 2, 3, 4, 5].map((n) => (
+                      <button
+                        key={n}
+                        type="button"
+                        onClick={() => setSwimMood(n)}
+                        className={cn(
+                          "flex-1 h-10 rounded-lg text-lg transition-smooth",
+                          swimMood === n
+                            ? "bg-fit-accent text-fit-accent-foreground"
+                            : "bg-fit-surface text-fit-muted hover:text-fit-foreground",
+                        )}
+                      >
+                        {["😞", "😕", "😐", "🙂", "🤩"][n - 1]}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </>
             )}
 

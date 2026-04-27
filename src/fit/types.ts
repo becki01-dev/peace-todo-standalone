@@ -21,6 +21,9 @@ export interface RunningData {
 export interface SwimmingData {
   distance_meters: number;
   pool_length_meters: number;
+  laps: number;
+  stroke: string;
+  mood?: number; // 1-5
   duration_seconds: number;
 }
 

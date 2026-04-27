@@ -31,8 +31,10 @@ export const WorkoutCard = ({ workout, onDelete }: { workout: Workout; onDelete:
     secondary = `${formatDuration(d.duration_seconds)} · ${moods[d.mood - 1] ?? ""}`;
   } else if (workout.type === "swimming") {
     const d = workout.data as SwimmingData;
+    const swimMood = d.mood ? `${moods[d.mood - 1] ?? ""} · ` : "";
+    const stroke = d.stroke ? `${d.stroke} · ` : "";
     primary = `${formatNumber(poolMetersToDisplay(d.distance_meters, prefs.pool_unit), 0)} ${prefs.pool_unit}`;
-    secondary = `${formatDuration(d.duration_seconds)} · 池长 ${formatNumber(poolMetersToDisplay(d.pool_length_meters, prefs.pool_unit), 0)}${prefs.pool_unit}`;
+    secondary = `${swimMood}${stroke}${formatDuration(d.duration_seconds)} · 池长 ${formatNumber(poolMetersToDisplay(d.pool_length_meters, prefs.pool_unit), 0)}${prefs.pool_unit} · ${d.laps ?? 0} 圈`;
   } else {
     const d = workout.data as StrengthData;
     primary = d.exercise;
@@ -51,7 +53,7 @@ export const WorkoutCard = ({ workout, onDelete }: { workout: Workout; onDelete:
         <div className="flex items-baseline justify-between gap-2">
           <p className="text-fit-foreground font-semibold truncate">{primary}</p>
           <span className="text-[11px] text-fit-muted shrink-0">
-            {date.toLocaleDateString("zh-CN", { month: "numeric", day: "numeric" })}
+            {date.toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit", hour12: false })}
           </span>
         </div>
         <p className="text-xs text-fit-muted mt-0.5 truncate">{secondary}</p>
