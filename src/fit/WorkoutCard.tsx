@@ -36,7 +36,10 @@ export const WorkoutCard = ({ workout, onDelete }: { workout: Workout; onDelete:
   } else {
     const d = workout.data as StrengthData;
     primary = d.exercise;
-    secondary = `${formatNumber(kgToDisplay(d.weight_kg, prefs.weight_unit))} ${prefs.weight_unit} × ${d.sets} × ${d.reps}`;
+    const loadText = d.bodyweight || d.weight_kg <= 0
+      ? "BW"
+      : `${formatNumber(kgToDisplay(d.weight_kg, prefs.weight_unit))} ${prefs.weight_unit}`;
+    secondary = `${loadText} × ${d.sets} × ${d.reps}`;
   }
 
   return (

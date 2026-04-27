@@ -27,6 +27,7 @@ export interface SwimmingData {
 export interface StrengthData {
   exercise: string;
   weight_kg: number;
+  bodyweight?: boolean;
   sets: number;
   reps: number;
 }

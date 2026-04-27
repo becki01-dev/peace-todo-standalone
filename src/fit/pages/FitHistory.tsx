@@ -42,6 +42,21 @@ const FitHistory = ({ reloadKey }: Props) => {
     } else toast.success("已删除");
   };
 
+  const sections = workouts.reduce<{ key: string; title: string; items: Workout[] }[]>((acc, workout) => {
+    const dayKey = localDayKey(workout.date);
+    const existing = acc[acc.length - 1];
+    if (existing && existing.key === dayKey) {
+      existing.items.push(workout);
+      return acc;
+    }
+    acc.push({
+      key: dayKey,
+      title: formatDayTitle(workout.date),
+      items: [workout],
+    });
+    return acc;
+  }, []);
+
   return (
     <div className="space-y-5">
       <SummaryCard workouts={workouts} />
@@ -57,9 +72,16 @@ const FitHistory = ({ reloadKey }: Props) => {
         ) : workouts.length === 0 ? (
           <FitEmptyState />
         ) : (
-          <div className="space-y-2">
-            {workouts.map((w) => (
-              <WorkoutCard key={w.id} workout={w} onDelete={handleDelete} />
+          <div className="space-y-4">
+            {sections.map((section) => (
+              <section key={section.key}>
+                <h3 className="text-xs text-fit-muted mb-2 px-1">{section.title}</h3>
+                <div className="space-y-2">
+                  {section.items.map((w) => (
+                    <WorkoutCard key={w.id} workout={w} onDelete={handleDelete} />
+                  ))}
+                </div>
+              </section>
             ))}
           </div>
         )}
@@ -69,3 +91,19 @@ const FitHistory = ({ reloadKey }: Props) => {
 };
 
 export default FitHistory;
+
+function localDayKey(isoDate: string) {
+  const d = new Date(isoDate);
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function formatDayTitle(isoDate: string) {
+  const d = new Date(isoDate);
+  const today = localDayKey(new Date().toISOString());
+  const key = localDayKey(isoDate);
+  if (key === today) return "今天";
+  return d.toLocaleDateString("zh-CN", { month: "numeric", day: "numeric", weekday: "short" });
+}

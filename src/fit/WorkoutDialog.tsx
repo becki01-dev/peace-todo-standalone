@@ -31,6 +31,7 @@ export const WorkoutDialog = ({ open, onOpenChange, onSaved }: Props) => {
   const [submitting, setSubmitting] = useState(false);
 
   // common
+  const [workoutDate, setWorkoutDate] = useState(todayYmd());
   const [notes, setNotes] = useState("");
   const [hours, setHours] = useState("0");
   const [minutes, setMinutes] = useState("");
@@ -50,6 +51,7 @@ export const WorkoutDialog = ({ open, onOpenChange, onSaved }: Props) => {
   const [exercise, setExercise] = useState("");
   const [weight, setWeight] = useState("");
   const [weightUnit, setWeightUnit] = useState<WeightUnit>(prefs.weight_unit);
+  const [isBodyweight, setIsBodyweight] = useState(false);
   const [sets, setSets] = useState("");
   const [reps, setReps] = useState("");
 
@@ -58,11 +60,12 @@ export const WorkoutDialog = ({ open, onOpenChange, onSaved }: Props) => {
       // reset on close
       setTimeout(() => {
         setType(null);
+        setWorkoutDate(todayYmd());
         setNotes("");
         setHours("0"); setMinutes(""); setSeconds("0");
         setRunDistance(""); setMood(3);
         setSwimDistance(""); setPoolLen("25");
-        setExercise(""); setWeight(""); setSets(""); setReps("");
+        setExercise(""); setWeight(""); setIsBodyweight(false); setSets(""); setReps("");
       }, 200);
     } else {
       setRunUnit(prefs.distance_unit);
@@ -104,10 +107,10 @@ export const WorkoutDialog = ({ open, onOpenChange, onSaved }: Props) => {
         duration_seconds: dur,
       };
     } else if (type === "strength") {
-      const w = parseFloat(weight);
+      const w = isBodyweight ? 0 : parseFloat(weight);
       const s = parseInt(sets);
       const r = parseInt(reps);
-      if (!exercise.trim() || !w || !s || !r) {
+      if (!exercise.trim() || Number.isNaN(w) || w < 0 || !s || !r) {
         toast.error("请完整填写动作信息");
         setSubmitting(false);
         return;
@@ -115,17 +118,24 @@ export const WorkoutDialog = ({ open, onOpenChange, onSaved }: Props) => {
       data = {
         exercise: exercise.trim(),
         weight_kg: weightInputToKg(w, weightUnit),
+        bodyweight: isBodyweight,
         sets: s,
         reps: r,
       };
     }
 
+    const selectedDate = new Date(`${workoutDate}T12:00:00`);
+    if (Number.isNaN(selectedDate.getTime())) {
+      toast.error("请选择有效日期");
+      setSubmitting(false);
+      return;
+    }
     const { error } = await supabase.from("workouts").insert({
       user_id: user.id,
       type,
       data,
       notes: notes.trim() || null,
-      date: new Date().toISOString(),
+      date: selectedDate.toISOString(),
     });
     setSubmitting(false);
     if (error) {
@@ -154,6 +164,17 @@ export const WorkoutDialog = ({ open, onOpenChange, onSaved }: Props) => {
           </div>
         ) : (
           <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-1">
+            <div>
+              <Label className="text-fit-muted text-xs mb-2 block">日期</Label>
+              <Input
+                type="date"
+                value={workoutDate}
+                onChange={(e) => setWorkoutDate(e.target.value)}
+                max={todayYmd()}
+                className="bg-fit-surface border-fit-border text-fit-foreground"
+              />
+            </div>
+
             {type === "running" && (
               <>
                 <DistanceField
@@ -224,12 +245,30 @@ export const WorkoutDialog = ({ open, onOpenChange, onSaved }: Props) => {
                 </div>
                 <DistanceField
                   label="重量"
-                  value={weight}
+                  value={isBodyweight ? "0" : weight}
                   onChange={setWeight}
                   unit={weightUnit}
                   onUnit={(u) => setWeightUnit(u as WeightUnit)}
                   units={["kg", "lb"]}
+                  disabled={isBodyweight}
+                  displayValue={isBodyweight ? "BW" : undefined}
                 />
+                <button
+                  type="button"
+                  onClick={() => {
+                    const next = !isBodyweight;
+                    setIsBodyweight(next);
+                    if (next) setWeight("0");
+                  }}
+                  className={cn(
+                    "w-full h-10 rounded-lg border text-sm font-semibold transition-smooth",
+                    isBodyweight
+                      ? "bg-fit-accent text-fit-accent-foreground border-fit-accent"
+                      : "bg-fit-surface text-fit-muted border-fit-border hover:text-fit-foreground",
+                  )}
+                >
+                  {isBodyweight ? "已启用：自重 / 无负重 (BW)" : "切换为：自重 / 无负重"}
+                </button>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <Label className="text-fit-muted text-xs mb-2 block">组数</Label>
@@ -311,7 +350,7 @@ const TypeButton = ({
 );
 
 const DistanceField = ({
-  label, value, onChange, unit, onUnit, units,
+  label, value, onChange, unit, onUnit, units, disabled, displayValue,
 }: {
   label: string;
   value: string;
@@ -319,14 +358,17 @@ const DistanceField = ({
   unit: string;
   onUnit: (u: string) => void;
   units: string[];
+  disabled?: boolean;
+  displayValue?: string;
 }) => (
   <div>
     <Label className="text-fit-muted text-xs mb-2 block">{label}</Label>
     <div className="flex gap-2">
       <Input
         inputMode="decimal"
-        value={value}
+        value={displayValue ?? value}
         onChange={(e) => onChange(e.target.value)}
+        disabled={disabled}
         className="bg-fit-surface border-fit-border text-fit-foreground flex-1"
       />
       <div className="flex bg-fit-surface border border-fit-border rounded-md p-0.5">
@@ -335,9 +377,11 @@ const DistanceField = ({
             key={u}
             type="button"
             onClick={() => onUnit(u)}
+            disabled={disabled}
             className={cn(
               "px-3 text-xs font-semibold rounded-sm transition-smooth",
               unit === u ? "bg-fit-accent text-fit-accent-foreground" : "text-fit-muted",
+              disabled && "opacity-50 cursor-not-allowed",
             )}
           >
             {u}
@@ -347,6 +391,14 @@ const DistanceField = ({
     </div>
   </div>
 );
+
+function todayYmd() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
 
 const DurationField = ({
   h, m, s, setH, setM, setS,
