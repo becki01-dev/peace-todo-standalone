@@ -1,5 +1,5 @@
 import { Footprints, Waves, Dumbbell, Trash2 } from "lucide-react";
-import { Workout, RunningData, SwimmingData, StrengthData } from "./types";
+import { Workout, RunningData, SwimmingData, StrengthData, SwimmingMultiSetData } from "./types";
 import { usePreferences } from "./usePreferences";
 import {
   metersToDisplay,
@@ -30,11 +30,35 @@ export const WorkoutCard = ({ workout, onDelete }: { workout: Workout; onDelete:
     primary = `${formatNumber(metersToDisplay(d.distance_meters, prefs.distance_unit))} ${prefs.distance_unit}`;
     secondary = `${formatDuration(d.duration_seconds)} · ${moods[d.mood - 1] ?? ""}`;
   } else if (workout.type === "swimming") {
-    const d = workout.data as SwimmingData;
-    const swimMood = d.mood ? `${moods[d.mood - 1] ?? ""} · ` : "";
-    const stroke = d.stroke ? `${d.stroke} · ` : "";
-    primary = `${formatNumber(poolMetersToDisplay(d.distance_meters, prefs.pool_unit), 0)} ${prefs.pool_unit}`;
-    secondary = `${swimMood}${stroke}${formatDuration(d.duration_seconds)} · 池长 ${formatNumber(poolMetersToDisplay(d.pool_length_meters, prefs.pool_unit), 0)}${prefs.pool_unit} · ${d.laps ?? 0} 圈`;
+    const d = workout.data as SwimmingData | SwimmingMultiSetData;
+    
+    if ('sets' in d && Array.isArray(d.sets)) {
+      // 多片段游泳数据
+      const multiSetData = d as SwimmingMultiSetData;
+      const swimMood = multiSetData.mood ? `${moods[multiSetData.mood - 1] ?? ""} · ` : "";
+      primary = `${formatNumber(poolMetersToDisplay(multiSetData.total_distance_meters, prefs.pool_unit), 0)} ${prefs.pool_unit}`;
+      
+      const setSummary = multiSetData.sets.reduce((acc, set) => {
+        if (!acc[set.stroke]) {
+          acc[set.stroke] = 0;
+        }
+        acc[set.stroke] += set.laps;
+        return acc;
+      }, {} as Record<string, number>);
+      
+      const strokeSummary = Object.entries(setSummary)
+        .map(([stroke, laps]) => `${stroke}${laps}圈`)
+        .join(" · ");
+      
+      secondary = `${swimMood}${strokeSummary} · ${formatDuration(multiSetData.total_duration_seconds)} · ${multiSetData.sets.length} 个片段`;
+    } else {
+      // 单一游泳数据
+      const singleSetData = d as SwimmingData;
+      const swimMood = singleSetData.mood ? `${moods[singleSetData.mood - 1] ?? ""} · ` : "";
+      const stroke = singleSetData.stroke ? `${singleSetData.stroke} · ` : "";
+      primary = `${formatNumber(poolMetersToDisplay(singleSetData.distance_meters, prefs.pool_unit), 0)} ${prefs.pool_unit}`;
+      secondary = `${swimMood}${stroke}${formatDuration(singleSetData.duration_seconds)} · 池长 ${formatNumber(poolMetersToDisplay(singleSetData.pool_length_meters, prefs.pool_unit), 0)}${prefs.pool_unit} · ${singleSetData.laps ?? 0} 圈`;
+    }
   } else {
     const d = workout.data as StrengthData;
     const isSession = !!d.session && Array.isArray(d.exercises) && d.exercises.length > 0;

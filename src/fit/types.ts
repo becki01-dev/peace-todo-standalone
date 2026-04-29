@@ -27,6 +27,20 @@ export interface SwimmingData {
   duration_seconds: number;
 }
 
+export interface SwimmingSet {
+  pool_length_meters: number;
+  laps: number;
+  stroke: string;
+  duration_seconds: number;
+}
+
+export interface SwimmingMultiSetData {
+  sets: SwimmingSet[];
+  total_distance_meters: number;
+  total_duration_seconds: number;
+  mood?: number;
+}
+
 export interface StrengthData {
   exercise: string;
   weight_kg: number;
@@ -46,7 +60,7 @@ export interface StrengthData {
   }>;
 }
 
-export type WorkoutData = RunningData | SwimmingData | StrengthData;
+export type WorkoutData = RunningData | SwimmingData | StrengthData | SwimmingMultiSetData;
 
 export interface Workout {
   id: string;
