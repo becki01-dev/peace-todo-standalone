@@ -11,7 +11,7 @@ const items = [
 export const BottomNav = ({ onAdd }: { onAdd: () => void }) => {
   const location = useLocation();
   // hide nav on /fit/auth
-  if (location.pathname.startsWith("/fit/auth")) return null;
+  if (location.pathname.startsWith("/fit/auth") || location.pathname.startsWith("/fit/strength/session")) return null;
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-30 fit-bottom-nav">

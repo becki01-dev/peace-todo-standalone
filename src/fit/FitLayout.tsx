@@ -10,6 +10,7 @@ const TITLES: Record<string, string> = {
   "/fit": "历史记录",
   "/fit/stats": "数据统计",
   "/fit/settings": "个人设置",
+  "/fit/strength/session": "力量训练会话",
 };
 
 const FitLayoutInner = () => {
@@ -64,7 +65,7 @@ const FitLayoutInner = () => {
       </header>
 
       <main className="max-w-2xl mx-auto px-4 pt-5">
-        <Outlet context={{ reloadKey }} />
+        <Outlet context={{ reloadKey, onWorkoutSaved: () => setReloadKey((k) => k + 1) }} />
       </main>
 
       <BottomNav onAdd={() => setDialogOpen(true)} />

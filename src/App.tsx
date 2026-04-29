@@ -12,6 +12,7 @@ import FitAuth from "./fit/pages/FitAuth";
 import FitHistoryRoute from "./fit/pages/FitHistoryRoute";
 import FitStats from "./fit/pages/FitStats";
 import FitSettings from "./fit/pages/FitSettings";
+import FitStrengthSession from "./fit/pages/FitStrengthSession";
 
 const queryClient = new QueryClient();
 
@@ -31,6 +32,7 @@ const App = () => (
               <Route index element={<FitHistoryRoute />} />
               <Route path="stats" element={<FitStats />} />
               <Route path="settings" element={<FitSettings />} />
+              <Route path="strength/session" element={<FitStrengthSession />} />
             </Route>
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />

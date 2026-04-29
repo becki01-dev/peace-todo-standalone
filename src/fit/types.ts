@@ -33,6 +33,17 @@ export interface StrengthData {
   bodyweight?: boolean;
   sets: number;
   reps: number;
+  session?: boolean;
+  exercises?: Array<{
+    name: string;
+    done?: boolean;
+    sets: Array<{
+      weight_kg: number;
+      reps: number;
+      bodyweight?: boolean;
+      done?: boolean;
+    }>;
+  }>;
 }
 
 export type WorkoutData = RunningData | SwimmingData | StrengthData;

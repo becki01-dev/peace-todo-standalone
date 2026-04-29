@@ -37,11 +37,19 @@ export const WorkoutCard = ({ workout, onDelete }: { workout: Workout; onDelete:
     secondary = `${swimMood}${stroke}${formatDuration(d.duration_seconds)} · 池长 ${formatNumber(poolMetersToDisplay(d.pool_length_meters, prefs.pool_unit), 0)}${prefs.pool_unit} · ${d.laps ?? 0} 圈`;
   } else {
     const d = workout.data as StrengthData;
-    primary = d.exercise;
-    const loadText = d.bodyweight || d.weight_kg <= 0
-      ? "BW"
-      : `${formatNumber(kgToDisplay(d.weight_kg, prefs.weight_unit))} ${prefs.weight_unit}`;
-    secondary = `${loadText} × ${d.sets} × ${d.reps}`;
+    const isSession = !!d.session && Array.isArray(d.exercises) && d.exercises.length > 0;
+    primary = isSession ? "力量训练会话" : d.exercise;
+    if (isSession) {
+      const doneCount = d.exercises?.filter((e) => e.done).length ?? 0;
+      const names = d.exercises?.slice(0, 2).map((e) => e.name).join(" · ") ?? "";
+      const more = (d.exercises?.length ?? 0) > 2 ? ` +${(d.exercises?.length ?? 0) - 2}` : "";
+      secondary = `${doneCount}/${d.exercises?.length ?? 0} 动作完成 · ${d.sets} 组 · ${names}${more}`;
+    } else {
+      const loadText = d.bodyweight || d.weight_kg <= 0
+        ? "BW"
+        : `${formatNumber(kgToDisplay(d.weight_kg, prefs.weight_unit))} ${prefs.weight_unit}`;
+      secondary = `${loadText} × ${d.sets} × ${d.reps}`;
+    }
   }
 
   return (

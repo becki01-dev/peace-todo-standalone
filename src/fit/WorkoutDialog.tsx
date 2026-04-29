@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,6 +26,7 @@ interface Props {
 }
 
 export const WorkoutDialog = ({ open, onOpenChange, onSaved }: Props) => {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const { prefs } = usePreferences();
   const [type, setType] = useState<WorkoutType | null>(null);
@@ -180,7 +182,14 @@ export const WorkoutDialog = ({ open, onOpenChange, onSaved }: Props) => {
           <div className="grid grid-cols-3 gap-3 py-2">
             <TypeButton icon={Footprints} label="跑步" onClick={() => setType("running")} />
             <TypeButton icon={Waves} label="游泳" onClick={() => setType("swimming")} />
-            <TypeButton icon={Dumbbell} label="力量" onClick={() => setType("strength")} />
+            <TypeButton
+              icon={Dumbbell}
+              label="力量会话"
+              onClick={() => {
+                onOpenChange(false);
+                navigate("/fit/strength/session");
+              }}
+            />
           </div>
         ) : (
           <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-1">
