@@ -1,5 +1,5 @@
-import { Footprints, Waves, Dumbbell, Trash2, Pencil } from "lucide-react";
-import { Workout, RunningData, SwimmingData, StrengthData, SwimmingMultiSetData } from "./types";
+import { Footprints, Waves, Dumbbell, Trash2, Pencil, Target } from "lucide-react";
+import { Workout, RunningData, SwimmingData, StrengthData, SwimmingMultiSetData, SwimmingSetData } from "./types";
 import { usePreferences } from "./usePreferences";
 import {
   metersToDisplay,
@@ -13,6 +13,7 @@ const ICONS = {
   running: Footprints,
   swimming: Waves,
   strength: Dumbbell,
+  swimming_set: Target,
 };
 
 export const WorkoutCard = ({ workout, onDelete, onEdit }: { 
@@ -63,6 +64,27 @@ export const WorkoutCard = ({ workout, onDelete, onEdit }: {
       primary = `${formatNumber(poolMetersToDisplay(singleSetData.distance_meters, prefs.pool_unit), 0)} ${prefs.pool_unit}`;
       secondary = `${swimMood}${stroke}${formatDuration(singleSetData.duration_seconds)} · 池长 ${formatNumber(poolMetersToDisplay(singleSetData.pool_length_meters, prefs.pool_unit), 0)}${prefs.pool_unit} · ${singleSetData.laps ?? 0} 圈`;
     }
+  } else if (workout.type === "swimming_set") {
+    const d = workout.data as SwimmingSetData;
+    primary = `专项游泳组 (${d.sets.length} 个训练组)`;
+    
+    // 按泳姿分组统计
+    const strokeSummary = d.sets.reduce((acc, set) => {
+      if (!acc[set.stroke]) {
+        acc[set.stroke] = { setsCount: 0, requiredCount: 0, completed: 0 };
+      }
+      const totalRequired = set.sets_count * set.count_per_set;
+      acc[set.stroke].setsCount += set.sets_count;
+      acc[set.stroke].requiredCount += totalRequired;
+      acc[set.stroke].completed += set.completed_count || 0;
+      return acc;
+    }, {} as Record<string, { setsCount: number; requiredCount: number; completed: number }>);
+    
+    const strokeText = Object.entries(strokeSummary)
+      .map(([stroke, data]) => `${stroke} ${data.completed}/${data.requiredCount}(${data.setsCount}组)`)
+      .join(" · ");
+    
+    secondary = `${strokeText} · 完成度: ${d.completion_rate.toFixed(1)}%`;
   } else {
     const d = workout.data as StrengthData;
     const isSession = !!d.session && Array.isArray(d.exercises) && d.exercises.length > 0;

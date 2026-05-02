@@ -25,6 +25,13 @@ export const poolMetersToDisplay = (meters: number, unit: PoolUnit): number =>
 export const poolInputToMeters = (value: number, unit: PoolUnit): number =>
   unit === "yd" ? value / 1.09361 : value;
 
+// Yard to meters conversion (for drill length input)
+export const yardsToMeters = (yards: number): number =>
+  yards / 1.09361;
+
+export const metersToYards = (meters: number): number =>
+  meters * 1.09361;
+
 // ---- Duration ----
 export const formatDuration = (seconds: number): string => {
   const h = Math.floor(seconds / 3600);
