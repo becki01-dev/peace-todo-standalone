@@ -5,6 +5,7 @@ import { PreferencesProvider } from "./usePreferences";
 import { BottomNav } from "./BottomNav";
 import { WorkoutDialog } from "./WorkoutDialog";
 import { ChevronLeft, Flame } from "lucide-react";
+import { Workout } from "./types";
 
 const TITLES: Record<string, string> = {
   "/fit": "历史记录",
@@ -19,6 +20,7 @@ const FitLayoutInner = () => {
   const { user, loading } = useAuth();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
+  const [editingWorkout, setEditingWorkout] = useState<Workout | null>(null);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -65,15 +67,29 @@ const FitLayoutInner = () => {
       </header>
 
       <main className="max-w-2xl mx-auto px-4 pt-5">
-        <Outlet context={{ reloadKey, onWorkoutSaved: () => setReloadKey((k) => k + 1) }} />
+        <Outlet context={{ 
+          reloadKey, 
+          onWorkoutSaved: () => setReloadKey((k) => k + 1),
+          onEditWorkout: (workout: Workout) => {
+            setEditingWorkout(workout);
+            setDialogOpen(true);
+          }
+        }} />
       </main>
 
-      <BottomNav onAdd={() => setDialogOpen(true)} />
+      <BottomNav onAdd={() => {
+        setEditingWorkout(null);
+        setDialogOpen(true);
+      }} />
 
       <WorkoutDialog
         open={dialogOpen}
-        onOpenChange={setDialogOpen}
+        onOpenChange={(v) => {
+          setDialogOpen(v);
+          if (!v) setEditingWorkout(null);
+        }}
         onSaved={() => setReloadKey((k) => k + 1)}
+        editingWorkout={editingWorkout}
       />
     </div>
   );

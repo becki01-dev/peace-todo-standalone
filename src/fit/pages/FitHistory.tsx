@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useOutletContext } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Workout } from "../types";
@@ -7,12 +8,15 @@ import { SummaryCard } from "../SummaryCard";
 import { FitEmptyState } from "../EmptyState";
 import { toast } from "sonner";
 
-interface Props {
+interface OutletContext {
   reloadKey: number;
+  onWorkoutSaved: () => void;
+  onEditWorkout: (workout: Workout) => void;
 }
 
-const FitHistory = ({ reloadKey }: Props) => {
+const FitHistory = () => {
   const { user } = useAuth();
+  const { reloadKey, onEditWorkout } = useOutletContext<OutletContext>();
   const [workouts, setWorkouts] = useState<Workout[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -28,11 +32,6 @@ const FitHistory = ({ reloadKey }: Props) => {
     setLoading(false);
   };
 
-  useEffect(() => {
-    load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, reloadKey]);
-
   const handleDelete = async (id: string) => {
     setWorkouts((prev) => prev.filter((w) => w.id !== id));
     const { error } = await supabase.from("workouts").delete().eq("id", id);
@@ -41,6 +40,11 @@ const FitHistory = ({ reloadKey }: Props) => {
       load();
     } else toast.success("已删除");
   };
+
+  useEffect(() => {
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, reloadKey]);
 
   const sections = workouts.reduce<{ key: string; title: string; items: Workout[] }[]>((acc, workout) => {
     const dayKey = localDayKey(workout.date);
@@ -78,7 +82,12 @@ const FitHistory = ({ reloadKey }: Props) => {
                 <h3 className="text-xs text-fit-muted mb-2 px-1">{section.title}</h3>
                 <div className="space-y-2">
                   {section.items.map((w) => (
-                    <WorkoutCard key={w.id} workout={w} onDelete={handleDelete} />
+                    <WorkoutCard 
+                      key={w.id} 
+                      workout={w} 
+                      onDelete={handleDelete}
+                      onEdit={onEditWorkout}
+                    />
                   ))}
                 </div>
               </section>

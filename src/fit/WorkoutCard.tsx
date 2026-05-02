@@ -1,4 +1,4 @@
-import { Footprints, Waves, Dumbbell, Trash2 } from "lucide-react";
+import { Footprints, Waves, Dumbbell, Trash2, Pencil } from "lucide-react";
 import { Workout, RunningData, SwimmingData, StrengthData, SwimmingMultiSetData } from "./types";
 import { usePreferences } from "./usePreferences";
 import {
@@ -15,7 +15,11 @@ const ICONS = {
   strength: Dumbbell,
 };
 
-export const WorkoutCard = ({ workout, onDelete }: { workout: Workout; onDelete: (id: string) => void }) => {
+export const WorkoutCard = ({ workout, onDelete, onEdit }: { 
+  workout: Workout; 
+  onDelete: (id: string) => void;
+  onEdit?: (workout: Workout) => void;
+}) => {
   const { prefs } = usePreferences();
   const Icon = ICONS[workout.type];
   const date = new Date(workout.date);
@@ -91,13 +95,24 @@ export const WorkoutCard = ({ workout, onDelete }: { workout: Workout; onDelete:
         <p className="text-xs text-fit-muted mt-0.5 truncate">{secondary}</p>
         {workout.notes && <p className="text-xs text-fit-muted/80 mt-1 truncate italic">"{workout.notes}"</p>}
       </div>
-      <button
-        onClick={() => onDelete(workout.id)}
-        className="opacity-0 group-hover:opacity-100 transition-smooth p-1.5 rounded-md text-fit-muted hover:text-destructive"
-        aria-label="删除"
-      >
-        <Trash2 className="w-4 h-4" />
-      </button>
+      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-smooth">
+        {onEdit && (
+          <button
+            onClick={() => onEdit(workout)}
+            className="p-1.5 rounded-md text-fit-muted hover:text-fit-accent"
+            aria-label="编辑"
+          >
+            <Pencil className="w-4 h-4" />
+          </button>
+        )}
+        <button
+          onClick={() => onDelete(workout.id)}
+          className="p-1.5 rounded-md text-fit-muted hover:text-destructive"
+          aria-label="删除"
+        >
+          <Trash2 className="w-4 h-4" />
+        </button>
+      </div>
     </div>
   );
 };

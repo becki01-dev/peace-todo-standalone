@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
-import { Footprints, Waves, Dumbbell, Sparkles, Trash2, Plus, type LucideIcon } from "lucide-react";
+import { Footprints, Waves, Dumbbell, Sparkles, Trash2, Plus, Pencil, type LucideIcon } from "lucide-react";
 import { WorkoutType, DistanceUnit, PoolUnit, WeightUnit, SwimmingSet } from "./types";
 import {
   distanceInputToMeters,
@@ -24,9 +24,10 @@ interface Props {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   onSaved: () => void;
+  editingWorkout?: Workout | null;
 }
 
-export const WorkoutDialog = ({ open, onOpenChange, onSaved }: Props) => {
+export const WorkoutDialog = ({ open, onOpenChange, onSaved, editingWorkout }: Props) => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { prefs } = usePreferences();
@@ -54,6 +55,7 @@ export const WorkoutDialog = ({ open, onOpenChange, onSaved }: Props) => {
   const [swimMood, setSwimMood] = useState(3);
   // 新增游泳片段相关状态
   const [swimSets, setSwimSets] = useState<SwimmingSet[]>([]);
+  const [editingSetIndex, setEditingSetIndex] = useState<number | null>(null);  // 当前正在编辑的片段索引
   const [segmentHours, setSegmentHours] = useState("0");  // 片段时长小时
   const [segmentMinutes, setSegmentMinutes] = useState("");  // 片段时长分钟
   const [segmentSeconds, setSegmentSeconds] = useState("0");  // 片段时长秒
@@ -65,6 +67,15 @@ export const WorkoutDialog = ({ open, onOpenChange, onSaved }: Props) => {
   const [isBodyweight, setIsBodyweight] = useState(false);
   const [sets, setSets] = useState("");
   const [reps, setReps] = useState("");
+  
+  // strength session (会话模式)
+  type StrengthSessionExercise = {
+    id: string;
+    name: string;
+    done: boolean;
+    sets: Array<{ weight_kg: number; reps: number; bodyweight?: boolean; done?: boolean }>;
+  };
+  const [strengthExercises, setStrengthExercises] = useState<StrengthSessionExercise[]>([]);
 
   useEffect(() => {
     if (!open) {
@@ -79,14 +90,92 @@ export const WorkoutDialog = ({ open, onOpenChange, onSaved }: Props) => {
         setExercise(""); setWeight(""); setIsBodyweight(false); setSets(""); setReps("");
         // 重置游泳片段相关状态
         setSwimSets([]);
+        setEditingSetIndex(null);
         setSegmentHours("0"); setSegmentMinutes(""); setSegmentSeconds("0");
+        // 重置力量训练会话状态
+        setStrengthExercises([]);
       }, 200);
     } else {
       setRunUnit(prefs.distance_unit);
       setSwimUnit(prefs.pool_unit);
       setWeightUnit(prefs.weight_unit);
+      
+      // 如果是编辑模式，填充数据
+      if (editingWorkout) {
+        populateFormFromWorkout(editingWorkout);
+      }
     }
-  }, [open, prefs]);
+  }, [open, prefs, editingWorkout]);
+
+  const populateFormFromWorkout = (workout: Workout) => {
+    setType(workout.type);
+    setWorkoutDate(workout.date.split('T')[0]);
+    setNotes(workout.notes || "");
+    
+    if (workout.type === "running") {
+      const data = workout.data as RunningData;
+      setRunDistance((data.distance_meters / 1000).toFixed(2));
+      setRunUnit(prefs.distance_unit);
+      const hoursVal = Math.floor(data.duration_seconds / 3600);
+      const minsVal = Math.floor((data.duration_seconds % 3600) / 60);
+      const secsVal = data.duration_seconds % 60;
+      setHours(hoursVal.toString());
+      setMinutes(minsVal.toString());
+      setSeconds(secsVal.toString());
+      setMood(data.mood || 3);
+    } else if (workout.type === "swimming") {
+      const data = workout.data as SwimmingData | SwimmingMultiSetData;
+      
+      if ('sets' in data && Array.isArray(data.sets)) {
+        // 多片段数据
+        const multiSetData = data as SwimmingMultiSetData;
+        setSwimSets(multiSetData.sets);
+        setSwimMood(multiSetData.mood || 3);
+      } else {
+        // 单一数据
+        const singleData = data as SwimmingData;
+        setPoolLen(singleData.pool_length_meters.toString());
+        setLaps(singleData.laps.toString());
+        setSwimStroke(singleData.stroke);
+        setSwimMood(singleData.mood || 3);
+        
+        const hoursVal = Math.floor(singleData.duration_seconds / 3600);
+        const minsVal = Math.floor((singleData.duration_seconds % 3600) / 60);
+        const secsVal = singleData.duration_seconds % 60;
+        setHours(hoursVal.toString());
+        setMinutes(minsVal.toString());
+        setSeconds(secsVal.toString());
+      }
+    } else if (workout.type === "strength") {
+      const data = workout.data as StrengthData;
+      
+      // 检查是否是会话模式（有多个动作）
+      const isSessionMode = data.session === true && Array.isArray(data.exercises) && data.exercises.length > 0;
+      
+      if (isSessionMode) {
+        // 会话模式：加载所有动作和组数据
+        const sessionExercises: StrengthSessionExercise[] = data.exercises.map((ex, idx) => ({
+          id: `exercise-${idx}-${Date.now()}`,
+          name: ex.name,
+          done: ex.done || false,
+          sets: (ex.sets || []).map(set => ({
+            weight_kg: set.weight_kg,
+            reps: set.reps,
+            bodyweight: set.bodyweight || false,
+            done: set.done || false,
+          })),
+        }));
+        setStrengthExercises(sessionExercises);
+      } else {
+        // 普通模式：单个动作，可以编辑
+        setExercise(data.exercise || "");
+        setWeight((data.weight_kg || 0).toFixed(1));
+        setIsBodyweight(data.bodyweight || false);
+        setSets((data.sets || 0).toString());
+        setReps((data.reps || 0).toString());
+      }
+    }
+  };
 
   const calculatedSwimDistance = useMemo(() => {
     const pl = parseFloat(poolLen);
@@ -115,6 +204,27 @@ export const WorkoutDialog = ({ open, onOpenChange, onSaved }: Props) => {
     };
   }, [swimSets, swimUnit]);
 
+  // 点击片段进行编辑
+  const editSet = (index: number) => {
+    const set = swimSets[index];
+    setEditingSetIndex(index);
+    
+    // 加载片段数据到表单
+    setPoolLen((set.pool_length_meters).toString());
+    setLaps(set.laps.toString());
+    setSwimStroke(set.stroke);
+    setCustomSwimStroke("");
+    
+    const hoursVal = Math.floor(set.duration_seconds / 3600);
+    const minsVal = Math.floor((set.duration_seconds % 3600) / 60);
+    const secsVal = set.duration_seconds % 60;
+    setSegmentHours(hoursVal.toString());
+    setSegmentMinutes(minsVal.toString());
+    setSegmentSeconds(secsVal.toString());
+    
+    toast.info("已加载片段到表单，修改后点击更新");
+  };
+
   // 添加当前片段到片段列表
   const addCurrentSet = () => {
     const pl = parseFloat(poolLen);
@@ -134,7 +244,19 @@ export const WorkoutDialog = ({ open, onOpenChange, onSaved }: Props) => {
       duration_seconds: dur,
     };
 
-    setSwimSets([...swimSets, newSet]);
+    if (editingSetIndex !== null) {
+      // 更新现有片段
+      const updatedSets = [...swimSets];
+      updatedSets[editingSetIndex] = newSet;
+      setSwimSets(updatedSets);
+      setEditingSetIndex(null);
+      toast.success("片段已更新");
+    } else {
+      // 添加新片段
+      setSwimSets([...swimSets, newSet]);
+      toast.success("已添加片段");
+    }
+    
     // 重置当前输入字段
     setLaps("40");
     setSwimStroke("自由泳");
@@ -142,8 +264,6 @@ export const WorkoutDialog = ({ open, onOpenChange, onSaved }: Props) => {
     setSegmentHours("0");
     setSegmentMinutes("");
     setSegmentSeconds("0");
-    
-    toast.success("已添加片段");
   };
 
   // 删除指定索引的片段
@@ -206,21 +326,42 @@ export const WorkoutDialog = ({ open, onOpenChange, onSaved }: Props) => {
         };
       }
     } else if (type === "strength") {
-      const w = isBodyweight ? 0 : parseFloat(weight);
-      const s = parseInt(sets);
-      const r = parseInt(reps);
-      if (!exercise.trim() || Number.isNaN(w) || w < 0 || !s || !r) {
-        toast.error("请完整填写动作信息");
-        setSubmitting(false);
-        return;
+      // 检查是否是会话模式
+      if (strengthExercises.length > 0) {
+        // 会话模式：保存多个动作
+        const totalSets = strengthExercises.reduce((sum, ex) => sum + ex.sets.length, 0);
+        data = {
+          session: true,
+          exercises: strengthExercises.map(ex => ({
+            name: ex.name,
+            done: ex.done,
+            sets: ex.sets.map(set => ({
+              weight_kg: set.weight_kg,
+              reps: set.reps,
+              bodyweight: set.bodyweight || false,
+              done: set.done || false,
+            })),
+          })),
+          sets: totalSets, // 总组数（用于显示）
+        };
+      } else {
+        // 普通模式：单个动作
+        const w = isBodyweight ? 0 : parseFloat(weight);
+        const s = parseInt(sets);
+        const r = parseInt(reps);
+        if (!exercise.trim() || Number.isNaN(w) || w < 0 || !s || !r) {
+          toast.error("请完整填写动作信息");
+          setSubmitting(false);
+          return;
+        }
+        data = {
+          exercise: exercise.trim(),
+          weight_kg: weightInputToKg(w, weightUnit),
+          bodyweight: isBodyweight,
+          sets: s,
+          reps: r,
+        };
       }
-      data = {
-        exercise: exercise.trim(),
-        weight_kg: weightInputToKg(w, weightUnit),
-        bodyweight: isBodyweight,
-        sets: s,
-        reps: r,
-      };
     }
 
     const selectedDate = new Date(`${workoutDate}T12:00:00`);
@@ -229,19 +370,41 @@ export const WorkoutDialog = ({ open, onOpenChange, onSaved }: Props) => {
       setSubmitting(false);
       return;
     }
-    const { error } = await supabase.from("workouts").insert({
-      user_id: user.id,
-      type,
-      data,
-      notes: notes.trim() || null,
-      date: selectedDate.toISOString(),
-    });
-    setSubmitting(false);
-    if (error) {
-      toast.error("保存失败");
-      return;
+
+    // 判断是创建还是更新
+    if (editingWorkout) {
+      const { error } = await supabase
+        .from("workouts")
+        .update({
+          type,
+          data,
+          notes: notes.trim() || null,
+          date: selectedDate.toISOString(),
+        })
+        .eq("id", editingWorkout.id);
+      
+      setSubmitting(false);
+      if (error) {
+        toast.error("更新失败");
+        return;
+      }
+      toast.success("已更新 💪");
+    } else {
+      const { error } = await supabase.from("workouts").insert({
+        user_id: user.id,
+        type,
+        data,
+        notes: notes.trim() || null,
+        date: selectedDate.toISOString(),
+      });
+      setSubmitting(false);
+      if (error) {
+        toast.error("保存失败");
+        return;
+      }
+      toast.success("已记录 💪");
     }
-    toast.success("已记录 💪");
+    
     onSaved();
     onOpenChange(false);
   };
@@ -251,7 +414,7 @@ export const WorkoutDialog = ({ open, onOpenChange, onSaved }: Props) => {
       <DialogContent className="bg-fit-card border-fit-border text-fit-foreground max-w-md">
         <DialogHeader>
           <DialogTitle className="text-fit-foreground">
-            {type ? `记录 ${typeLabel(type)}` : "选择运动类型"}
+            {editingWorkout ? `编辑 ${typeLabel(type ?? editingWorkout.type)}` : (type ? `记录 ${typeLabel(type)}` : "选择运动类型")}
           </DialogTitle>
         </DialogHeader>
 
@@ -348,8 +511,17 @@ export const WorkoutDialog = ({ open, onOpenChange, onSaved }: Props) => {
                       <p className="text-fit-muted text-xs mb-2">已添加片段</p>
                       <div className="space-y-1.5 max-h-32 overflow-y-auto">
                         {swimSets.map((set, idx) => (
-                          <div key={idx} className="flex items-center justify-between bg-fit-surface rounded px-2 py-1.5 text-xs">
-                            <div className="flex-1">
+                          <div 
+                            key={idx} 
+                            className={cn(
+                              "flex items-center justify-between bg-fit-surface rounded px-2 py-1.5 text-xs transition-smooth",
+                              editingSetIndex === idx ? "border border-fit-accent" : ""
+                            )}
+                          >
+                            <div 
+                              className="flex-1 cursor-pointer"
+                              onClick={() => editSet(idx)}
+                            >
                               <span className="text-fit-foreground font-medium">{set.stroke}</span>
                               <span className="text-fit-muted ml-2">
                                 {set.laps}圈 × {set.pool_length_meters}m
@@ -357,14 +529,28 @@ export const WorkoutDialog = ({ open, onOpenChange, onSaved }: Props) => {
                               <span className="text-fit-muted ml-2">
                                 {formatDuration(set.duration_seconds)}
                               </span>
+                              {editingSetIndex === idx && (
+                                <span className="ml-2 text-fit-accent font-semibold">✏️ 编辑中</span>
+                              )}
                             </div>
-                            <button
-                              type="button"
-                              onClick={() => removeSet(idx)}
-                              className="text-fit-muted hover:text-destructive transition-smooth ml-2"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
+                            <div className="flex items-center gap-1">
+                              <button
+                                type="button"
+                                onClick={() => editSet(idx)}
+                                className="text-fit-muted hover:text-fit-accent transition-smooth p-1"
+                                title="编辑片段"
+                              >
+                                <Pencil className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => removeSet(idx)}
+                                className="text-fit-muted hover:text-destructive transition-smooth p-1"
+                                title="删除片段"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
                           </div>
                         ))}
                       </div>
@@ -535,11 +721,44 @@ export const WorkoutDialog = ({ open, onOpenChange, onSaved }: Props) => {
                   <Button
                     type="button"
                     onClick={addCurrentSet}
-                    className="w-full bg-fit-accent text-fit-accent-foreground hover:bg-fit-accent/90"
+                    className={cn(
+                      "w-full text-fit-accent-foreground",
+                      editingSetIndex !== null 
+                        ? "bg-fit-accent hover:bg-fit-accent/90" 
+                        : "bg-fit-accent hover:bg-fit-accent/90"
+                    )}
                   >
-                    <Plus className="w-4 h-4 mr-2" />
-                    {swimSets.length === 0 ? "添加片段" : "添加下一段"}
+                    {editingSetIndex !== null ? (
+                      <>
+                        <Sparkles className="w-4 h-4 mr-2" />
+                        更新片段
+                      </>
+                    ) : (
+                      <>
+                        <Plus className="w-4 h-4 mr-2" />
+                        {swimSets.length === 0 ? "添加片段" : "添加下一段"}
+                      </>
+                    )}
                   </Button>
+                  
+                  {editingSetIndex !== null && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      onClick={() => {
+                        setEditingSetIndex(null);
+                        setLaps("40");
+                        setSwimStroke("自由泳");
+                        setCustomSwimStroke("");
+                        setSegmentHours("0");
+                        setSegmentMinutes("");
+                        setSegmentSeconds("0");
+                      }}
+                      className="w-full text-fit-muted hover:text-fit-foreground"
+                    >
+                      取消编辑
+                    </Button>
+                  )}
                 </div>
 
                 <div>
@@ -567,61 +786,109 @@ export const WorkoutDialog = ({ open, onOpenChange, onSaved }: Props) => {
 
             {type === "strength" && (
               <>
-                <div>
-                  <Label className="text-fit-muted text-xs mb-2 block">动作名称</Label>
-                  <Input
-                    value={exercise}
-                    onChange={(e) => setExercise(e.target.value)}
-                    placeholder="如:卧推"
-                    className="bg-fit-surface border-fit-border text-fit-foreground"
-                  />
-                </div>
-                <DistanceField
-                  label="重量"
-                  value={isBodyweight ? "0" : weight}
-                  onChange={setWeight}
-                  unit={weightUnit}
-                  onUnit={(u) => setWeightUnit(u as WeightUnit)}
-                  units={["kg", "lb"]}
-                  disabled={isBodyweight}
-                  displayValue={isBodyweight ? "BW" : undefined}
-                />
-                <button
-                  type="button"
-                  onClick={() => {
-                    const next = !isBodyweight;
-                    setIsBodyweight(next);
-                    if (next) setWeight("0");
-                  }}
-                  className={cn(
-                    "w-full h-10 rounded-lg border text-sm font-semibold transition-smooth",
-                    isBodyweight
-                      ? "bg-fit-accent text-fit-accent-foreground border-fit-accent"
-                      : "bg-fit-surface text-fit-muted border-fit-border hover:text-fit-foreground",
-                  )}
-                >
-                  {isBodyweight ? "已启用：自重 / 无负重 (BW)" : "切换为：自重 / 无负重"}
-                </button>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <Label className="text-fit-muted text-xs mb-2 block">组数</Label>
-                    <Input
-                      inputMode="numeric"
-                      value={sets}
-                      onChange={(e) => setSets(e.target.value)}
-                      className="bg-fit-surface border-fit-border text-fit-foreground"
-                    />
+                {/* 会话模式：多个动作 */}
+                {strengthExercises.length > 0 ? (
+                  <div className="space-y-4">
+                    <div className="rounded-lg border border-fit-accent/35 bg-fit-accent/10 p-3 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2 text-fit-accent text-xs font-semibold">
+                          <Dumbbell className="w-4 h-4" />
+                          力量训练会话 ({strengthExercises.length} 个动作)
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-2 max-h-60 overflow-y-auto">
+                        {strengthExercises.map((ex, exIdx) => (
+                          <div key={ex.id} className="bg-fit-surface rounded-lg p-3 border border-fit-border">
+                            <div className="flex items-center justify-between mb-2">
+                              <span className="text-fit-foreground font-semibold text-sm">{ex.name}</span>
+                              <button
+                                type="button"
+                                onClick={() => setStrengthExercises(strengthExercises.filter((_, i) => i !== exIdx))}
+                                className="text-fit-muted hover:text-destructive transition-smooth"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                            <div className="space-y-1.5">
+                              {ex.sets.map((set, setIdx) => (
+                                <div key={setIdx} className="flex items-center gap-2 text-xs text-fit-muted">
+                                  <span>第{setIdx + 1}组:</span>
+                                  <span>{set.bodyweight ? "BW" : `${set.weight_kg}kg`}</span>
+                                  <span>× {set.reps}次</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    
+                    <div className="text-center text-xs text-fit-muted">
+                      <p>会话模式编辑功能开发中...</p>
+                      <p className="mt-1">如需修改，请在专门的会话页面进行</p>
+                    </div>
                   </div>
-                  <div>
-                    <Label className="text-fit-muted text-xs mb-2 block">每组次数</Label>
-                    <Input
-                      inputMode="numeric"
-                      value={reps}
-                      onChange={(e) => setReps(e.target.value)}
-                      className="bg-fit-surface border-fit-border text-fit-foreground"
+                ) : (
+                  /* 普通模式：单个动作 */
+                  <>
+                    <div>
+                      <Label className="text-fit-muted text-xs mb-2 block">动作名称</Label>
+                      <Input
+                        value={exercise}
+                        onChange={(e) => setExercise(e.target.value)}
+                        placeholder="如:卧推"
+                        className="bg-fit-surface border-fit-border text-fit-foreground"
+                      />
+                    </div>
+                    <DistanceField
+                      label="重量"
+                      value={isBodyweight ? "0" : weight}
+                      onChange={setWeight}
+                      unit={weightUnit}
+                      onUnit={(u) => setWeightUnit(u as WeightUnit)}
+                      units={["kg", "lb"]}
+                      disabled={isBodyweight}
+                      displayValue={isBodyweight ? "BW" : undefined}
                     />
-                  </div>
-                </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const next = !isBodyweight;
+                        setIsBodyweight(next);
+                        if (next) setWeight("0");
+                      }}
+                      className={cn(
+                        "w-full h-10 rounded-lg border text-sm font-semibold transition-smooth",
+                        isBodyweight
+                          ? "bg-fit-accent text-fit-accent-foreground border-fit-accent"
+                          : "bg-fit-surface text-fit-muted border-fit-border hover:text-fit-foreground",
+                      )}
+                    >
+                      {isBodyweight ? "已启用：自重 / 无负重 (BW)" : "切换为：自重 / 无负重"}
+                    </button>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <Label className="text-fit-muted text-xs mb-2 block">组数</Label>
+                        <Input
+                          inputMode="numeric"
+                          value={sets}
+                          onChange={(e) => setSets(e.target.value)}
+                          className="bg-fit-surface border-fit-border text-fit-foreground"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-fit-muted text-xs mb-2 block">每组次数</Label>
+                        <Input
+                          inputMode="numeric"
+                          value={reps}
+                          onChange={(e) => setReps(e.target.value)}
+                          className="bg-fit-surface border-fit-border text-fit-foreground"
+                        />
+                      </div>
+                    </div>
+                  </>
+                )}
               </>
             )}
 
@@ -641,7 +908,18 @@ export const WorkoutDialog = ({ open, onOpenChange, onSaved }: Props) => {
           {type && (
             <Button
               variant="ghost"
-              onClick={() => setType(null)}
+              onClick={() => {
+                setType(null);
+                // 重置表单
+                setWorkoutDate(todayYmd());
+                setNotes("");
+                setHours("0"); setMinutes(""); setSeconds("0");
+                setRunDistance(""); setMood(3);
+                setPoolLen("25"); setLaps("40"); setSwimStroke("自由泳"); setCustomSwimStroke(""); setSwimMood(3);
+                setExercise(""); setWeight(""); setIsBodyweight(false); setSets(""); setReps("");
+                setSwimSets([]);
+                setSegmentHours("0"); setSegmentMinutes(""); setSegmentSeconds("0");
+              }}
               className="text-fit-muted hover:text-fit-foreground hover:bg-fit-surface"
             >
               返回
@@ -653,7 +931,7 @@ export const WorkoutDialog = ({ open, onOpenChange, onSaved }: Props) => {
               disabled={submitting}
               className="bg-fit-accent text-fit-accent-foreground hover:bg-fit-accent/90 font-semibold"
             >
-              {submitting ? "保存中..." : "保存记录"}
+              {submitting ? "保存中..." : (editingWorkout ? "更新记录" : "保存记录")}
             </Button>
           )}
         </DialogFooter>
