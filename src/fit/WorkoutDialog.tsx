@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { Footprints, Waves, Dumbbell, Sparkles, Trash2, Plus, Pencil, Target, type LucideIcon } from "lucide-react";
-import { WorkoutType, DistanceUnit, PoolUnit, WeightUnit, SwimmingSet as SwimmingMultiSet, SwimmingSetItem, SwimmingSetData } from "./types";
+import { WorkoutType, DistanceUnit, PoolUnit, WeightUnit, SwimmingSet as SwimmingMultiSet, SwimmingSetItem, SwimmingSetData, Workout, RunningData, SwimmingData, SwimmingMultiSetData, StrengthData } from "./types";
 import {
   distanceInputToMeters,
   hmsToSeconds,
@@ -302,7 +302,7 @@ export const WorkoutDialog = ({ open, onOpenChange, onSaved, editingWorkout }: P
       return;
     }
 
-    const newSet: SwimmingSet = {
+    const newSet: SwimmingMultiSet = {
       pool_length_meters: poolInputToMeters(pl, swimUnit),
       laps: lp,
       stroke: finalStroke,
