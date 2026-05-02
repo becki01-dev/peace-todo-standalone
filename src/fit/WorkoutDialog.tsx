@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { Footprints, Waves, Dumbbell, Sparkles, Trash2, Plus, Pencil, type LucideIcon } from "lucide-react";
-import { WorkoutType, DistanceUnit, PoolUnit, WeightUnit, SwimmingSet } from "./types";
+import { WorkoutType, DistanceUnit, PoolUnit, WeightUnit, SwimmingSet, Workout, RunningData, SwimmingData, SwimmingMultiSetData, StrengthData } from "./types";
 import {
   distanceInputToMeters,
   hmsToSeconds,
