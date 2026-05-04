@@ -17,6 +17,7 @@ type SessionSet = {
   reps: string;
   bodyweight: boolean;
   done: boolean;
+  weight_unit?: "kg" | "lb";
 };
 
 type SessionExercise = {
@@ -62,7 +63,7 @@ const FitStrengthSession = () => {
         id: crypto.randomUUID(),
         name: trimmed,
         done: false,
-        sets: [{ weight: "", reps: "10", bodyweight: false, done: false }],
+        sets: [{ weight: "", reps: "10", bodyweight: false, done: false, weight_unit: prefs.weight_unit }],
       },
     ]);
     setCustomExercise("");
@@ -88,6 +89,7 @@ const FitStrengthSession = () => {
             reps: last?.reps ?? "",
             bodyweight: last?.bodyweight ?? false,
             done: false,
+            weight_unit: last?.weight_unit ?? prefs.weight_unit,
           },
         ],
       };
@@ -104,6 +106,7 @@ const FitStrengthSession = () => {
         weight: source.weight,
         reps: source.reps,
         bodyweight: source.bodyweight,
+        weight_unit: source.weight_unit,
       };
       return { ...exercise, sets: next };
     });
@@ -136,7 +139,7 @@ const FitStrengthSession = () => {
           }
 
           return {
-            weight_kg: weightInputToKg(rawWeight, prefs.weight_unit),
+            weight_kg: weightInputToKg(rawWeight, set.weight_unit || prefs.weight_unit),
             reps,
             bodyweight: set.bodyweight,
             done: set.done,
@@ -270,21 +273,63 @@ const FitStrengthSession = () => {
 
             <div className="space-y-2">
               {exercise.sets.map((set, i) => (
-                <div key={i} className="grid grid-cols-[72px_1fr_1fr_56px] gap-2 items-center">
+                <div key={i} className="grid grid-cols-[72px_1fr_auto_1fr_56px] gap-2 items-center">
                   <span className="text-xs text-fit-muted">第 {i + 1} 组</span>
-                  <Input
-                    value={set.bodyweight ? "BW" : set.weight}
-                    onChange={(e) =>
-                      patchExercise(exercise.id, (e0) => {
-                        const sets = [...e0.sets];
-                        sets[i] = { ...sets[i], weight: e.target.value };
-                        return { ...e0, sets };
-                      })
-                    }
-                    disabled={set.bodyweight}
-                    placeholder={`重量(${prefs.weight_unit})`}
-                    className="bg-fit-surface border-fit-border text-fit-foreground text-center"
-                  />
+                  <div className="flex gap-1">
+                    <Input
+                      value={set.bodyweight ? "BW" : set.weight}
+                      onChange={(e) =>
+                        patchExercise(exercise.id, (e0) => {
+                          const sets = [...e0.sets];
+                          sets[i] = { ...sets[i], weight: e.target.value };
+                          return { ...e0, sets };
+                        })
+                      }
+                      disabled={set.bodyweight}
+                      placeholder="重量"
+                      className="bg-fit-surface border-fit-border text-fit-foreground text-center flex-1"
+                    />
+                    {!set.bodyweight && (
+                      <div className="flex rounded-md border border-fit-border overflow-hidden">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            patchExercise(exercise.id, (e0) => {
+                              const sets = [...e0.sets];
+                              sets[i] = { ...sets[i], weight_unit: "kg" };
+                              return { ...e0, sets };
+                            })
+                          }
+                          className={cn(
+                            "px-2 py-1.5 text-xs font-semibold transition-smooth",
+                            (set.weight_unit || prefs.weight_unit) === "kg"
+                              ? "bg-fit-accent text-fit-accent-foreground"
+                              : "bg-fit-surface text-fit-muted hover:text-fit-foreground",
+                          )}
+                        >
+                          kg
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            patchExercise(exercise.id, (e0) => {
+                              const sets = [...e0.sets];
+                              sets[i] = { ...sets[i], weight_unit: "lb" };
+                              return { ...e0, sets };
+                            })
+                          }
+                          className={cn(
+                            "px-2 py-1.5 text-xs font-semibold transition-smooth border-l border-fit-border",
+                            (set.weight_unit || prefs.weight_unit) === "lb"
+                              ? "bg-fit-accent text-fit-accent-foreground"
+                              : "bg-fit-surface text-fit-muted hover:text-fit-foreground",
+                          )}
+                        >
+                          lb
+                        </button>
+                      </div>
+                    )}
+                  </div>
                   <Input
                     value={set.reps}
                     onChange={(e) =>
@@ -316,7 +361,7 @@ const FitStrengthSession = () => {
                   >
                     <Check className="w-4 h-4" />
                   </button>
-                  <div className="col-span-4 -mt-1">
+                  <div className="col-span-5 -mt-1">
                     <button
                       type="button"
                       onClick={() =>
