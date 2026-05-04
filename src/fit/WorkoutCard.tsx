@@ -88,7 +88,7 @@ export const WorkoutCard = ({ workout, onDelete, onEdit }: {
   } else {
     const d = workout.data as StrengthData;
     const isSession = !!d.session && Array.isArray(d.exercises) && d.exercises.length > 0;
-    primary = isSession ? "力量训练会话" : d.exercise;
+    primary = isSession ? "力量训练" : d.exercise;
     if (isSession) {
       const doneCount = d.exercises?.filter((e) => e.done).length ?? 0;
       const names = d.exercises?.slice(0, 2).map((e) => e.name).join(" · ") ?? "";

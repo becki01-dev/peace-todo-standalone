@@ -564,7 +564,7 @@ export const WorkoutDialog = ({ open, onOpenChange, onSaved, editingWorkout }: P
             <TypeButton icon={Target} label="专项游泳组" onClick={() => setType("swimming_set")} />
             <TypeButton
               icon={Dumbbell}
-              label="力量会话"
+              label="力量训练"
               onClick={() => {
                 onOpenChange(false);
                 navigate("/fit/strength/session");
@@ -933,15 +933,44 @@ export const WorkoutDialog = ({ open, onOpenChange, onSaved, editingWorkout }: P
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2 text-fit-accent text-xs font-semibold">
                           <Dumbbell className="w-4 h-4" />
-                          力量训练会话 ({strengthExercises.length} 个动作)
+                          力量训练 ({strengthExercises.length} 个动作)
                         </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const name = prompt("输入动作名称");
+                            if (name?.trim()) {
+                              setStrengthExercises([
+                                ...strengthExercises,
+                                {
+                                  id: `exercise-${Date.now()}`,
+                                  name: name.trim(),
+                                  done: false,
+                                  sets: [{ weight_kg: 0, reps: 10, bodyweight: false, done: false }],
+                                },
+                              ]);
+                            }
+                          }}
+                          className="text-fit-accent hover:text-fit-accent/80 transition-smooth"
+                        >
+                          <Plus className="w-4 h-4" />
+                        </button>
                       </div>
                       
                       <div className="space-y-2 max-h-60 overflow-y-auto">
                         {strengthExercises.map((ex, exIdx) => (
                           <div key={ex.id} className="bg-fit-surface rounded-lg p-3 border border-fit-border">
                             <div className="flex items-center justify-between mb-2">
-                              <span className="text-fit-foreground font-semibold text-sm">{ex.name}</span>
+                              <input
+                                type="text"
+                                value={ex.name}
+                                onChange={(e) => {
+                                  const updated = [...strengthExercises];
+                                  updated[exIdx] = { ...updated[exIdx], name: e.target.value };
+                                  setStrengthExercises(updated);
+                                }}
+                                className="bg-transparent text-fit-foreground font-semibold text-sm border-none outline-none flex-1 mr-2"
+                              />
                               <button
                                 type="button"
                                 onClick={() => setStrengthExercises(strengthExercises.filter((_, i) => i !== exIdx))}
@@ -952,21 +981,98 @@ export const WorkoutDialog = ({ open, onOpenChange, onSaved, editingWorkout }: P
                             </div>
                             <div className="space-y-1.5">
                               {ex.sets.map((set, setIdx) => (
-                                <div key={setIdx} className="flex items-center gap-2 text-xs text-fit-muted">
-                                  <span>第{setIdx + 1}组:</span>
-                                  <span>{set.bodyweight ? "BW" : `${set.weight_kg}kg`}</span>
-                                  <span>× {set.reps}次</span>
+                                <div key={setIdx} className="flex items-center gap-2">
+                                  <span className="text-xs text-fit-muted w-12">第{setIdx + 1}组</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const updated = [...strengthExercises];
+                                      const newBodyweight = !set.bodyweight;
+                                      updated[exIdx].sets[setIdx] = {
+                                        ...set,
+                                        bodyweight: newBodyweight,
+                                        weight_kg: newBodyweight ? 0 : set.weight_kg,
+                                      };
+                                      setStrengthExercises(updated);
+                                    }}
+                                    className={cn(
+                                      "px-2 py-1 rounded text-xs font-medium transition-smooth",
+                                      set.bodyweight
+                                        ? "bg-fit-accent text-fit-accent-foreground"
+                                        : "bg-fit-card text-fit-muted border border-fit-border"
+                                    )}
+                                  >
+                                    BW
+                                  </button>
+                                  {!set.bodyweight && (
+                                    <input
+                                      type="number"
+                                      inputMode="decimal"
+                                      value={set.weight_kg}
+                                      onChange={(e) => {
+                                        const updated = [...strengthExercises];
+                                        updated[exIdx].sets[setIdx] = {
+                                          ...set,
+                                          weight_kg: parseFloat(e.target.value) || 0,
+                                        };
+                                        setStrengthExercises(updated);
+                                      }}
+                                      placeholder="重量"
+                                      className="w-20 px-2 py-1 rounded bg-fit-card border border-fit-border text-fit-foreground text-xs"
+                                    />
+                                  )}
+                                  <span className="text-xs text-fit-muted">×</span>
+                                  <input
+                                    type="number"
+                                    inputMode="numeric"
+                                    value={set.reps}
+                                    onChange={(e) => {
+                                      const updated = [...strengthExercises];
+                                      updated[exIdx].sets[setIdx] = {
+                                        ...set,
+                                        reps: parseInt(e.target.value) || 0,
+                                      };
+                                      setStrengthExercises(updated);
+                                    }}
+                                    placeholder="次数"
+                                    className="w-16 px-2 py-1 rounded bg-fit-card border border-fit-border text-fit-foreground text-xs"
+                                  />
+                                  <span className="text-xs text-fit-muted">次</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const updated = [...strengthExercises];
+                                      updated[exIdx].sets.splice(setIdx, 1);
+                                      setStrengthExercises(updated);
+                                    }}
+                                    className="text-fit-muted hover:text-destructive transition-smooth ml-auto"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
                                 </div>
                               ))}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const updated = [...strengthExercises];
+                                  const lastSet = ex.sets[ex.sets.length - 1];
+                                  updated[exIdx].sets.push({
+                                    weight_kg: lastSet?.weight_kg ?? 0,
+                                    reps: lastSet?.reps ?? 10,
+                                    bodyweight: lastSet?.bodyweight ?? false,
+                                    done: false,
+                                  });
+                                  setStrengthExercises(updated);
+                                }}
+                                className="w-full mt-2 py-1.5 rounded-md bg-fit-card border border-fit-border text-xs text-fit-muted hover:text-fit-foreground transition-smooth flex items-center justify-center gap-1"
+                              >
+                                <Plus className="w-3.5 h-3.5" />
+                                添加一组
+                              </button>
                             </div>
                           </div>
                         ))}
                       </div>
-                    </div>
-                    
-                    <div className="text-center text-xs text-fit-muted">
-                      <p>会话模式编辑功能开发中...</p>
-                      <p className="mt-1">如需修改，请在专门的会话页面进行</p>
                     </div>
                   </div>
                 ) : (
