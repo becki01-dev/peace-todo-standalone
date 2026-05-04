@@ -1085,7 +1085,7 @@ export const WorkoutDialog = ({ open, onOpenChange, onSaved, editingWorkout }: P
                         <div>
                           <Label className="text-fit-muted text-[10px] mb-1 block">泳姿</Label>
                           <div className="flex flex-wrap gap-2">
-                            {["自由泳", "蛙泳", "仰泳", "蝶泳"].map((option) => (
+                            {["自由泳", "蛙泳", "仰泳", "蝶泳", "混合泳"].map((option) => (
                               <button
                                 key={option}
                                 type="button"
