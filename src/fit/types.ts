@@ -16,6 +16,7 @@ export interface RunningData {
   distance_meters: number;
   duration_seconds: number;
   mood: number; // 1-5
+  input_unit?: DistanceUnit; // 记录输入时使用的单位
 }
 
 export interface SwimmingData {
@@ -25,6 +26,7 @@ export interface SwimmingData {
   stroke: string;
   mood?: number; // 1-5
   duration_seconds: number;
+  input_unit?: PoolUnit; // 记录输入时使用的单位
 }
 
 export interface SwimmingSet {
@@ -32,6 +34,7 @@ export interface SwimmingSet {
   laps: number;
   stroke: string;
   duration_seconds: number;
+  input_unit?: PoolUnit; // 记录输入时使用的单位
 }
 
 export interface SwimmingMultiSetData {
@@ -49,6 +52,7 @@ export interface SwimmingSetItem {
   stroke: string; // 泳姿
   target_time_seconds: number; // 要求时间（秒）
   completed_count?: number; // 实际完成总数
+  input_unit?: PoolUnit; // 记录输入时使用的单位
 }
 
 export interface SwimmingSetData {
@@ -57,6 +61,7 @@ export interface SwimmingSetData {
   total_completed_count: number; // 实际完成总数
   completion_rate: number; // 完成度百分比
   notes?: string;
+  input_unit?: PoolUnit; // 记录输入时使用的单位
 }
 
 // 专项游泳训练数据结构
@@ -81,10 +86,12 @@ export interface StrengthData {
   bodyweight?: boolean;
   sets: number;
   reps: number;
+  input_unit?: WeightUnit; // 记录输入时使用的单位
   session?: boolean;
   exercises?: Array<{
     name: string;
     done?: boolean;
+    input_unit?: WeightUnit; // 记录输入时使用的单位
     sets: Array<{
       weight_kg: number;
       reps: number;

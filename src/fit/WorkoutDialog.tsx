@@ -123,8 +123,10 @@ export const WorkoutDialog = ({ open, onOpenChange, onSaved, editingWorkout }: P
     
     if (workout.type === "running") {
       const data = workout.data as RunningData;
-      setRunDistance((data.distance_meters / 1000).toFixed(2));
-      setRunUnit(prefs.distance_unit);
+      // 优先使用保存的输入单位，如果没有则使用当前偏好
+      const inputUnit = data.input_unit || prefs.distance_unit;
+      setRunDistance((data.distance_meters / (inputUnit === "mi" ? 1609.344 : 1000)).toFixed(2));
+      setRunUnit(inputUnit);
       const hoursVal = Math.floor(data.duration_seconds / 3600);
       const minsVal = Math.floor((data.duration_seconds % 3600) / 60);
       const secsVal = data.duration_seconds % 60;
@@ -143,7 +145,10 @@ export const WorkoutDialog = ({ open, onOpenChange, onSaved, editingWorkout }: P
       } else {
         // 单一数据
         const singleData = data as SwimmingData;
-        setPoolLen(singleData.pool_length_meters.toString());
+        // 优先使用保存的输入单位，如果没有则使用当前偏好
+        const inputUnit = singleData.input_unit || prefs.pool_unit;
+        setSwimUnit(inputUnit);
+        setPoolLen((inputUnit === "yd" ? (singleData.pool_length_meters * 1.09361) : singleData.pool_length_meters).toString());
         setLaps(singleData.laps.toString());
         setSwimStroke(singleData.stroke);
         setSwimMood(singleData.mood || 3);
@@ -168,8 +173,8 @@ export const WorkoutDialog = ({ open, onOpenChange, onSaved, editingWorkout }: P
           name: ex.name,
           done: ex.done || false,
           sets: (ex.sets || []).map(set => {
-            // 将存储的kg值转换为显示单位
-            const displayUnit = prefs.weight_unit;
+            // 优先使用保存的输入单位，如果没有则使用当前偏好
+            const displayUnit = ex.input_unit || prefs.weight_unit;
             const displayWeight = kgToDisplay(set.weight_kg, displayUnit);
             
             return {
@@ -182,14 +187,26 @@ export const WorkoutDialog = ({ open, onOpenChange, onSaved, editingWorkout }: P
           }),
         }));
         setStrengthExercises(sessionExercises);
+      } else {
+        // 普通模式（单个动作）：为了向后兼容旧数据
+        // 注意：根据规范，新记录应统一使用会话模式
+        setExercise(data.exercise || "");
+        const displayUnit = data.input_unit || prefs.weight_unit;
+        setWeight(kgToDisplay(data.weight_kg || 0, displayUnit).toFixed(1));
+        setWeightUnit(displayUnit);
+        setIsBodyweight(data.bodyweight || false);
+        setSets((data.sets || 0).toString());
+        setReps((data.reps || 0).toString());
       }
     } else if (workout.type === "swimming_set") {
       const data = workout.data as SwimmingSetData;
       // 加载专项游泳组数据
+      // 优先使用保存的输入单位，如果没有则使用当前偏好
+      const inputUnit = data.input_unit || prefs.pool_unit;
       const setInputs: SwimmingSetItemInput[] = data.sets.map((set, idx) => {
         const lengthInMeters = set.length_meters;
-        // 根据用户偏好决定显示单位
-        const displayUnit = prefs.pool_unit;
+        // 优先使用每个训练组保存的单位，如果没有则使用整体单位
+        const displayUnit = set.input_unit || inputUnit;
         const displayLength = displayUnit === "yd" ? metersToYards(lengthInMeters) : lengthInMeters;
         
         const targetMinutes = Math.floor(set.target_time_seconds / 60);
@@ -370,6 +387,7 @@ export const WorkoutDialog = ({ open, onOpenChange, onSaved, editingWorkout }: P
         distance_meters: distanceInputToMeters(d, runUnit),
         duration_seconds: dur,
         mood,
+        input_unit: runUnit, // 记录输入单位
       };
     } else if (type === "swimming") {
       // 如果有片段，则使用多片段格式
@@ -382,7 +400,10 @@ export const WorkoutDialog = ({ open, onOpenChange, onSaved, editingWorkout }: P
         }, 0);
 
         data = {
-          sets: swimSets,
+          sets: swimSets.map(set => ({
+            ...set,
+            input_unit: swimUnit, // 记录每个片段的输入单位
+          })),
           total_distance_meters: totalDistanceMeters,
           total_duration_seconds: totalDurationSeconds,
           mood: swimMood,
@@ -405,6 +426,7 @@ export const WorkoutDialog = ({ open, onOpenChange, onSaved, editingWorkout }: P
           stroke: finalStroke,
           mood: swimMood,
           duration_seconds: dur,
+          input_unit: swimUnit, // 记录输入单位
         };
       }
     } else if (type === "strength") {
@@ -421,6 +443,7 @@ export const WorkoutDialog = ({ open, onOpenChange, onSaved, editingWorkout }: P
         exercises: strengthExercises.map(ex => ({
           name: ex.name,
           done: ex.done,
+          input_unit: ex.sets[0]?.weight_unit || prefs.weight_unit, // 记录动作的输入单位
           sets: ex.sets.map(set => ({
             weight_kg: weightInputToKg(set.weight_kg, set.weight_unit || prefs.weight_unit),
             reps: set.reps,
@@ -464,6 +487,7 @@ export const WorkoutDialog = ({ open, onOpenChange, onSaved, editingWorkout }: P
           stroke: set.stroke,
           target_time_seconds: targetTimeSeconds,
           completed_count: completedCount,
+          input_unit: set.lengthUnit, // 记录每个训练组的输入单位
         };
       });
 
@@ -477,6 +501,7 @@ export const WorkoutDialog = ({ open, onOpenChange, onSaved, editingWorkout }: P
         total_required_count: totalRequiredCount,
         total_completed_count: totalCompletedCount,
         completion_rate: Math.min(completionRate, 100),
+        input_unit: swimmingSets[0]?.lengthUnit || prefs.pool_unit, // 记录整体输入单位
       };
     }
 

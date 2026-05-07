@@ -32,7 +32,9 @@ export const WorkoutCard = ({ workout, onDelete, onEdit }: {
 
   if (workout.type === "running") {
     const d = workout.data as RunningData;
-    primary = `${formatNumber(metersToDisplay(d.distance_meters, prefs.distance_unit))} ${prefs.distance_unit}`;
+    // 优先使用保存的输入单位，如果没有则使用当前偏好
+    const displayUnit = d.input_unit || prefs.distance_unit;
+    primary = `${formatNumber(metersToDisplay(d.distance_meters, displayUnit))} ${displayUnit}`;
     secondary = `${formatDuration(d.duration_seconds)} · ${moods[d.mood - 1] ?? ""}`;
   } else if (workout.type === "swimming") {
     const d = workout.data as SwimmingData | SwimmingMultiSetData;
@@ -41,7 +43,10 @@ export const WorkoutCard = ({ workout, onDelete, onEdit }: {
       // 多片段游泳数据
       const multiSetData = d as SwimmingMultiSetData;
       const swimMood = multiSetData.mood ? `${moods[multiSetData.mood - 1] ?? ""} · ` : "";
-      primary = `${formatNumber(poolMetersToDisplay(multiSetData.total_distance_meters, prefs.pool_unit), 0)} ${prefs.pool_unit}`;
+      
+      // 使用第一个片段的输入单位，如果没有则使用当前偏好
+      const displayUnit = multiSetData.sets[0]?.input_unit || prefs.pool_unit;
+      primary = `${formatNumber(poolMetersToDisplay(multiSetData.total_distance_meters, displayUnit), 0)} ${displayUnit}`;
       
       const setSummary = multiSetData.sets.reduce((acc, set) => {
         if (!acc[set.stroke]) {
@@ -61,8 +66,10 @@ export const WorkoutCard = ({ workout, onDelete, onEdit }: {
       const singleSetData = d as SwimmingData;
       const swimMood = singleSetData.mood ? `${moods[singleSetData.mood - 1] ?? ""} · ` : "";
       const stroke = singleSetData.stroke ? `${singleSetData.stroke} · ` : "";
-      primary = `${formatNumber(poolMetersToDisplay(singleSetData.distance_meters, prefs.pool_unit), 0)} ${prefs.pool_unit}`;
-      secondary = `${swimMood}${stroke}${formatDuration(singleSetData.duration_seconds)} · 池长 ${formatNumber(poolMetersToDisplay(singleSetData.pool_length_meters, prefs.pool_unit), 0)}${prefs.pool_unit} · ${singleSetData.laps ?? 0} 圈`;
+      // 优先使用保存的输入单位，如果没有则使用当前偏好
+      const displayUnit = singleSetData.input_unit || prefs.pool_unit;
+      primary = `${formatNumber(poolMetersToDisplay(singleSetData.distance_meters, displayUnit), 0)} ${displayUnit}`;
+      secondary = `${swimMood}${stroke}${formatDuration(singleSetData.duration_seconds)} · 池长 ${formatNumber(poolMetersToDisplay(singleSetData.pool_length_meters, displayUnit), 0)}${displayUnit} · ${singleSetData.laps ?? 0} 圈`;
     }
   } else if (workout.type === "swimming_set") {
     const d = workout.data as SwimmingSetData;
@@ -97,7 +104,7 @@ export const WorkoutCard = ({ workout, onDelete, onEdit }: {
     } else {
       const loadText = d.bodyweight || d.weight_kg <= 0
         ? "BW"
-        : `${formatNumber(kgToDisplay(d.weight_kg, prefs.weight_unit))} ${prefs.weight_unit}`;
+        : `${formatNumber(kgToDisplay(d.weight_kg, d.input_unit || prefs.weight_unit))} ${d.input_unit || prefs.weight_unit}`;
       secondary = `${loadText} × ${d.sets} × ${d.reps}`;
     }
   }
