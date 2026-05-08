@@ -1,5 +1,5 @@
 import { Footprints, Waves, Dumbbell, Trash2, Pencil, Target } from "lucide-react";
-import { Workout, RunningData, SwimmingData, StrengthData, SwimmingMultiSetData, SwimmingSetData } from "./types";
+import { Workout, RunningData, SwimmingData, StrengthData, SwimmingMultiSetData, SwimmingSetData, DistanceUnit, WeightUnit, PoolUnit } from "./types";
 import { usePreferences } from "./usePreferences";
 import {
   metersToDisplay,
@@ -14,6 +14,13 @@ const ICONS = {
   swimming: Waves,
   strength: Dumbbell,
   swimming_set: Target,
+};
+
+// 旧数据的默认单位（没有 input_unit 字段时使用）
+const LEGACY_DEFAULT_UNITS = {
+  distance: "mile" as DistanceUnit,  // 跑步默认 mile
+  weight: "lb" as WeightUnit,        // 力量训练默认 lb
+  pool: "yd" as PoolUnit,            // 游泳默认 yd
 };
 
 export const WorkoutCard = ({ workout, onDelete, onEdit }: { 
@@ -32,8 +39,8 @@ export const WorkoutCard = ({ workout, onDelete, onEdit }: {
 
   if (workout.type === "running") {
     const d = workout.data as RunningData;
-    // 优先使用保存的输入单位，如果没有则使用当前偏好
-    const displayUnit = d.input_unit || prefs.distance_unit;
+    // 优先使用保存的输入单位，如果没有则使用旧数据默认单位（mile）
+    const displayUnit = d.input_unit || LEGACY_DEFAULT_UNITS.distance;
     primary = `${formatNumber(metersToDisplay(d.distance_meters, displayUnit))} ${displayUnit}`;
     secondary = `${formatDuration(d.duration_seconds)} · ${moods[d.mood - 1] ?? ""}`;
   } else if (workout.type === "swimming") {
@@ -44,8 +51,8 @@ export const WorkoutCard = ({ workout, onDelete, onEdit }: {
       const multiSetData = d as SwimmingMultiSetData;
       const swimMood = multiSetData.mood ? `${moods[multiSetData.mood - 1] ?? ""} · ` : "";
       
-      // 使用第一个片段的输入单位，如果没有则使用当前偏好
-      const displayUnit = multiSetData.sets[0]?.input_unit || prefs.pool_unit;
+      // 优先使用保存的输入单位，如果没有则使用旧数据默认单位（yd）
+      const displayUnit = multiSetData.sets[0]?.input_unit || LEGACY_DEFAULT_UNITS.pool;
       primary = `${formatNumber(poolMetersToDisplay(multiSetData.total_distance_meters, displayUnit), 0)} ${displayUnit}`;
       
       const setSummary = multiSetData.sets.reduce((acc, set) => {
@@ -66,8 +73,9 @@ export const WorkoutCard = ({ workout, onDelete, onEdit }: {
       const singleSetData = d as SwimmingData;
       const swimMood = singleSetData.mood ? `${moods[singleSetData.mood - 1] ?? ""} · ` : "";
       const stroke = singleSetData.stroke ? `${singleSetData.stroke} · ` : "";
-      // 优先使用保存的输入单位，如果没有则使用当前偏好
-      const displayUnit = singleSetData.input_unit || prefs.pool_unit;
+      // 优先使用保存的输入单位，如果没有则使用旧数据默认单位（yd）
+      const displayUnit = singleSetData.input_unit || LEGACY_DEFAULT_UNITS.pool;
+
       primary = `${formatNumber(poolMetersToDisplay(singleSetData.distance_meters, displayUnit), 0)} ${displayUnit}`;
       secondary = `${swimMood}${stroke}${formatDuration(singleSetData.duration_seconds)} · 池长 ${formatNumber(poolMetersToDisplay(singleSetData.pool_length_meters, displayUnit), 0)}${displayUnit} · ${singleSetData.laps ?? 0} 圈`;
     }
@@ -102,9 +110,11 @@ export const WorkoutCard = ({ workout, onDelete, onEdit }: {
       const more = (d.exercises?.length ?? 0) > 2 ? ` +${(d.exercises?.length ?? 0) - 2}` : "";
       secondary = `${doneCount}/${d.exercises?.length ?? 0} 动作完成 · ${d.sets} 组 · ${names}${more}`;
     } else {
+      // 优先使用保存的输入单位，如果没有则使用旧数据默认单位（lb）
+      const displayUnit = d.input_unit || LEGACY_DEFAULT_UNITS.weight;
       const loadText = d.bodyweight || d.weight_kg <= 0
         ? "BW"
-        : `${formatNumber(kgToDisplay(d.weight_kg, d.input_unit || prefs.weight_unit))} ${d.input_unit || prefs.weight_unit}`;
+        : `${formatNumber(kgToDisplay(d.weight_kg, displayUnit))} ${displayUnit}`;
       secondary = `${loadText} × ${d.sets} × ${d.reps}`;
     }
   }

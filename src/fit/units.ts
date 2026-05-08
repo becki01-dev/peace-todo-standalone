@@ -47,7 +47,12 @@ export const hmsToSeconds = (h: number, m: number, s: number): number =>
 
 export const formatNumber = (n: number, digits = 2): string => {
   if (Number.isNaN(n)) return "0";
-  return n.toFixed(digits).replace(/\.?0+$/, "");
+  const fixed = n.toFixed(digits);
+  // 只删除小数部分末尾的0，保留整数部分
+  if (digits === 0) {
+    return fixed; // 如果不需要小数位，直接返回
+  }
+  return fixed.replace(/(\.\d*?)0+$/, "$1").replace(/\.$/, "");
 };
 
 // Rough kcal estimation

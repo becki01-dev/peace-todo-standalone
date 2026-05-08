@@ -12,9 +12,11 @@ import {
   distanceInputToMeters,
   hmsToSeconds,
   poolInputToMeters,
+  poolMetersToDisplay,
   weightInputToKg,
   kgToDisplay,
   formatDuration,
+  formatNumber,
   metersToYards,
   yardsToMeters,
 } from "./units";
@@ -22,6 +24,13 @@ import { usePreferences } from "./usePreferences";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
+
+// 旧数据的默认单位（没有 input_unit 字段时使用）
+const LEGACY_DEFAULT_UNITS = {
+  distance: "mile" as DistanceUnit,  // 跑步默认 mile
+  weight: "lb" as WeightUnit,        // 力量训练默认 lb
+  pool: "yd" as PoolUnit,            // 游泳默认 yd
+};
 
 interface Props {
   open: boolean;
@@ -123,8 +132,8 @@ export const WorkoutDialog = ({ open, onOpenChange, onSaved, editingWorkout }: P
     
     if (workout.type === "running") {
       const data = workout.data as RunningData;
-      // 优先使用保存的输入单位，如果没有则使用当前偏好
-      const inputUnit = data.input_unit || prefs.distance_unit;
+      // 优先使用保存的输入单位，如果没有则使用旧数据默认单位（mile）
+      const inputUnit = data.input_unit || LEGACY_DEFAULT_UNITS.distance;
       setRunDistance((data.distance_meters / (inputUnit === "mi" ? 1609.344 : 1000)).toFixed(2));
       setRunUnit(inputUnit);
       const hoursVal = Math.floor(data.duration_seconds / 3600);
@@ -142,11 +151,16 @@ export const WorkoutDialog = ({ open, onOpenChange, onSaved, editingWorkout }: P
         const multiSetData = data as SwimmingMultiSetData;
         setSwimSets(multiSetData.sets);
         setSwimMood(multiSetData.mood || 3);
+        
+        // 根据第一个片段的input_unit设置swimUnit
+        if (multiSetData.sets.length > 0 && multiSetData.sets[0].input_unit) {
+          setSwimUnit(multiSetData.sets[0].input_unit);
+        }
       } else {
         // 单一数据
         const singleData = data as SwimmingData;
-        // 优先使用保存的输入单位，如果没有则使用当前偏好
-        const inputUnit = singleData.input_unit || prefs.pool_unit;
+        // 优先使用保存的输入单位，如果没有则使用旧数据默认单位（yd）
+        const inputUnit = singleData.input_unit || LEGACY_DEFAULT_UNITS.pool;
         setSwimUnit(inputUnit);
         setPoolLen((inputUnit === "yd" ? (singleData.pool_length_meters * 1.09361) : singleData.pool_length_meters).toString());
         setLaps(singleData.laps.toString());
@@ -173,8 +187,8 @@ export const WorkoutDialog = ({ open, onOpenChange, onSaved, editingWorkout }: P
           name: ex.name,
           done: ex.done || false,
           sets: (ex.sets || []).map(set => {
-            // 优先使用保存的输入单位，如果没有则使用当前偏好
-            const displayUnit = ex.input_unit || prefs.weight_unit;
+            // 优先使用保存的输入单位，如果没有则使用旧数据默认单位（lb）
+            const displayUnit = ex.input_unit || LEGACY_DEFAULT_UNITS.weight;
             const displayWeight = kgToDisplay(set.weight_kg, displayUnit);
             
             return {
@@ -191,7 +205,8 @@ export const WorkoutDialog = ({ open, onOpenChange, onSaved, editingWorkout }: P
         // 普通模式（单个动作）：为了向后兼容旧数据
         // 注意：根据规范，新记录应统一使用会话模式
         setExercise(data.exercise || "");
-        const displayUnit = data.input_unit || prefs.weight_unit;
+        // 优先使用保存的输入单位，如果没有则使用旧数据默认单位（lb）
+        const displayUnit = data.input_unit || LEGACY_DEFAULT_UNITS.weight;
         setWeight(kgToDisplay(data.weight_kg || 0, displayUnit).toFixed(1));
         setWeightUnit(displayUnit);
         setIsBodyweight(data.bodyweight || false);
@@ -201,8 +216,8 @@ export const WorkoutDialog = ({ open, onOpenChange, onSaved, editingWorkout }: P
     } else if (workout.type === "swimming_set") {
       const data = workout.data as SwimmingSetData;
       // 加载专项游泳组数据
-      // 优先使用保存的输入单位，如果没有则使用当前偏好
-      const inputUnit = data.input_unit || prefs.pool_unit;
+      // 优先使用保存的输入单位，如果没有则使用旧数据默认单位（yd）
+      const inputUnit = data.input_unit || LEGACY_DEFAULT_UNITS.pool;
       const setInputs: SwimmingSetItemInput[] = data.sets.map((set, idx) => {
         const lengthInMeters = set.length_meters;
         // 优先使用每个训练组保存的单位，如果没有则使用整体单位
@@ -245,7 +260,7 @@ export const WorkoutDialog = ({ open, onOpenChange, onSaved, editingWorkout }: P
   const swimSummary = useMemo(() => {
     const totalDistanceMeters = swimSets.reduce((sum, set) => sum + (set.pool_length_meters * set.laps), 0);
     const totalDurationSeconds = swimSets.reduce((sum, set) => sum + (set.duration_seconds || 0), 0);
-    const totalDistanceDisplay = totalDistanceMeters / (swimUnit === "m" ? 1 : 1.09361); // 转换为当前单位
+    const totalDistanceDisplay = poolMetersToDisplay(totalDistanceMeters, swimUnit);
 
     return {
       totalDistanceMeters,
@@ -282,8 +297,14 @@ export const WorkoutDialog = ({ open, onOpenChange, onSaved, editingWorkout }: P
     const set = swimSets[index];
     setEditingSetIndex(index);
     
-    // 加载片段数据到表单
-    setPoolLen((set.pool_length_meters).toString());
+    // 根据保存的input_unit，将米转换回用户输入的单位
+    const inputUnit = set.input_unit || swimUnit;
+    const displayValue = poolMetersToDisplay(set.pool_length_meters, inputUnit);
+    setPoolLen(displayValue.toString());
+    
+    // 设置单位选择器
+    setSwimUnit(inputUnit);
+    
     setLaps(set.laps.toString());
     setSwimStroke(set.stroke);
     setCustomSwimStroke("");
@@ -305,6 +326,18 @@ export const WorkoutDialog = ({ open, onOpenChange, onSaved, editingWorkout }: P
     const dur = hmsToSeconds(+segmentHours, +segmentMinutes, +segmentSeconds);
     const finalStroke = swimStroke === "__custom__" ? customSwimStroke.trim() : swimStroke;
 
+    // 调试日志
+    console.log(" Schwe addCurrentSet called:", {
+      poolLen,
+      swimUnit,
+      laps,
+      segmentHours,
+      segmentMinutes,
+      segmentSeconds,
+      parsed: { pl, lp, dur },
+      calculated_meters: poolInputToMeters(pl, swimUnit)
+    });
+
     if (!pl || !lp || !dur || !finalStroke) {
       toast.error("请填写泳姿、泳池长度、圈数和时长");
       return;
@@ -315,6 +348,7 @@ export const WorkoutDialog = ({ open, onOpenChange, onSaved, editingWorkout }: P
       laps: lp,
       stroke: finalStroke,
       duration_seconds: dur,
+      input_unit: swimUnit, // 记录输入单位
     };
 
     if (editingSetIndex !== null) {
@@ -390,45 +424,50 @@ export const WorkoutDialog = ({ open, onOpenChange, onSaved, editingWorkout }: P
         input_unit: runUnit, // 记录输入单位
       };
     } else if (type === "swimming") {
-      // 如果有片段，则使用多片段格式
-      if (swimSets.length > 0) {
-        const totalDistanceMeters = swimSets.reduce((sum, set) => {
-          return sum + (set.pool_length_meters * set.laps);
-        }, 0);
-        const totalDurationSeconds = swimSets.reduce((sum, set) => {
-          return sum + (set.duration_seconds || 0);
-        }, 0);
-
-        data = {
-          sets: swimSets.map(set => ({
-            ...set,
-            input_unit: swimUnit, // 记录每个片段的输入单位
-          })),
-          total_distance_meters: totalDistanceMeters,
-          total_duration_seconds: totalDurationSeconds,
-          mood: swimMood,
-        };
-      } else {
-        // 否则使用旧格式
-        const pl = parseFloat(poolLen);
-        const lp = parseInt(laps);
-        const dur = hmsToSeconds(+hours, +minutes, +seconds);
-        const finalStroke = swimStroke === "__custom__" ? customSwimStroke.trim() : swimStroke;
-        if (!pl || !lp || !dur || !finalStroke) {
-          toast.error("请填写泳姿、泳池长度、圈数和时长");
-          setSubmitting(false);
-          return;
-        }
-        data = {
-          distance_meters: calculatedSwimDistance.distanceMeters,
-          pool_length_meters: poolInputToMeters(pl, swimUnit),
-          laps: lp,
-          stroke: finalStroke,
-          mood: swimMood,
-          duration_seconds: dur,
-          input_unit: swimUnit, // 记录输入单位
-        };
+      // 统一使用多片段格式
+      if (swimSets.length === 0) {
+        toast.error("请至少添加一个游泳片段");
+        setSubmitting(false);
+        return;
       }
+
+      const totalDistanceMeters = swimSets.reduce((sum, set) => {
+        return sum + (set.pool_length_meters * set.laps);
+      }, 0);
+      const totalDurationSeconds = swimSets.reduce((sum, set) => {
+        return sum + (set.duration_seconds || 0);
+      }, 0);
+
+      // 详细调试日志
+      console.log(" Schwe Swimming save calculation:", {
+        swimSets: swimSets.map(s => ({
+          pool_length_meters: s.pool_length_meters,
+          laps: s.laps,
+          input_unit: s.input_unit,
+          calculated_distance: s.pool_length_meters * s.laps
+        })),
+        totalDistanceMeters,
+        displayUnit: swimSets[0]?.input_unit || swimUnit,
+        displayValue: poolMetersToDisplay(totalDistanceMeters, swimSets[0]?.input_unit || swimUnit)
+      });
+
+      data = {
+        sets: swimSets.map(set => ({
+          ...set,
+          // 保留每个片段自己的input_unit，如果不存在则使用当前swimUnit
+          input_unit: set.input_unit || swimUnit,
+        })),
+        total_distance_meters: totalDistanceMeters,
+        total_duration_seconds: totalDurationSeconds,
+        mood: swimMood,
+      };
+      
+      // 调试日志
+      console.log(" Schwe Swimming save debug:", {
+        swimSets,
+        totalDistanceMeters,
+        displayData: data
+      });
     } else if (type === "strength") {
       // 统一使用会话模式数据结构
       if (strengthExercises.length === 0) {
@@ -652,7 +691,23 @@ export const WorkoutDialog = ({ open, onOpenChange, onSaved, editingWorkout }: P
                     <div className="border-t border-fit-border/50 pt-2 mt-2">
                       <p className="text-fit-muted text-xs mb-2">已添加片段</p>
                       <div className="space-y-1.5 max-h-32 overflow-y-auto">
-                        {swimSets.map((set, idx) => (
+                        {swimSets.map((set, idx) => {
+                          // 调试日志
+                          if (idx === 0) {
+                            const displayValue = poolMetersToDisplay(set.pool_length_meters, set.input_unit || swimUnit);
+                            const formattedValue = formatNumber(displayValue, 0);
+                            console.log(" Schwe Fragment display debug:", {
+                              pool_length_meters: set.pool_length_meters,
+                              input_unit: set.input_unit,
+                              swimUnit,
+                              display_value_raw: displayValue,
+                              display_value_formatted: formattedValue,
+                              display_unit: set.input_unit || swimUnit,
+                              final_display_string: `${formattedValue} ${set.input_unit || swimUnit}`
+                            });
+                          }
+                          
+                          return (
                           <div 
                             key={idx} 
                             className={cn(
@@ -666,7 +721,7 @@ export const WorkoutDialog = ({ open, onOpenChange, onSaved, editingWorkout }: P
                             >
                               <span className="text-fit-foreground font-medium">{set.stroke}</span>
                               <span className="text-fit-muted ml-2">
-                                {set.laps}圈 × {set.pool_length_meters}m
+                                {set.laps}圈 × {formatNumber(poolMetersToDisplay(set.pool_length_meters, set.input_unit || swimUnit), 0)} {set.input_unit || swimUnit}
                               </span>
                               <span className="text-fit-muted ml-2">
                                 {formatDuration(set.duration_seconds)}
@@ -694,7 +749,8 @@ export const WorkoutDialog = ({ open, onOpenChange, onSaved, editingWorkout }: P
                               </button>
                             </div>
                           </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     </div>
                   </div>
