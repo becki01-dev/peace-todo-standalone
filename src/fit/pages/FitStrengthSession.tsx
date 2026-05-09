@@ -44,6 +44,7 @@ const FitStrengthSession = () => {
   const { prefs } = usePreferences();
   const { onWorkoutSaved } = useOutletContext<{ onWorkoutSaved: () => void }>();
   const [workoutDate, setWorkoutDate] = useState(todayYmd());
+  const [workoutTime, setWorkoutTime] = useState("12:00");  // 新增：时间字段
   const [notes, setNotes] = useState("");
   const [customExercise, setCustomExercise] = useState("");
   const [exercises, setExercises] = useState<SessionExercise[]>([]);
@@ -161,9 +162,9 @@ const FitStrengthSession = () => {
       (sum, exercise) => sum + exercise.sets.reduce((acc, set) => acc + set.reps, 0),
       0,
     );
-    const date = new Date(`${workoutDate}T12:00:00`);
+    const date = new Date(`${workoutDate}T${workoutTime}:00`);  // 修改：使用用户选择的时间
     if (Number.isNaN(date.getTime())) {
-      toast.error("请选择有效日期");
+      toast.error("请选择有效日期和时间");
       return;
     }
 
@@ -205,6 +206,16 @@ const FitStrengthSession = () => {
             value={workoutDate}
             onChange={(e) => setWorkoutDate(e.target.value)}
             max={todayYmd()}
+            className="bg-fit-surface border-fit-border text-fit-foreground"
+          />
+        </div>
+        
+        <div>
+          <Label className="text-fit-muted text-xs mb-2 block">时间</Label>
+          <Input
+            type="time"
+            value={workoutTime}
+            onChange={(e) => setWorkoutTime(e.target.value)}
             className="bg-fit-surface border-fit-border text-fit-foreground"
           />
         </div>

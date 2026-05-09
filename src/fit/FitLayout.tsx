@@ -21,6 +21,7 @@ const FitLayoutInner = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
   const [editingWorkout, setEditingWorkout] = useState<Workout | null>(null);
+  const [copyingWorkout, setCopyingWorkout] = useState<Workout | null>(null);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -72,6 +73,12 @@ const FitLayoutInner = () => {
           onWorkoutSaved: () => setReloadKey((k) => k + 1),
           onEditWorkout: (workout: Workout) => {
             setEditingWorkout(workout);
+            setCopyingWorkout(null);
+            setDialogOpen(true);
+          },
+          onCopyWorkout: (workout: Workout) => {
+            setCopyingWorkout(workout);
+            setEditingWorkout(null);
             setDialogOpen(true);
           }
         }} />
@@ -79,6 +86,7 @@ const FitLayoutInner = () => {
 
       <BottomNav onAdd={() => {
         setEditingWorkout(null);
+        setCopyingWorkout(null);
         setDialogOpen(true);
       }} />
 
@@ -86,10 +94,14 @@ const FitLayoutInner = () => {
         open={dialogOpen}
         onOpenChange={(v) => {
           setDialogOpen(v);
-          if (!v) setEditingWorkout(null);
+          if (!v) {
+            setEditingWorkout(null);
+            setCopyingWorkout(null);
+          }
         }}
         onSaved={() => setReloadKey((k) => k + 1)}
         editingWorkout={editingWorkout}
+        copyingWorkout={copyingWorkout}
       />
     </div>
   );

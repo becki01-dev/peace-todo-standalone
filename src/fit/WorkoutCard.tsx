@@ -1,4 +1,4 @@
-import { Footprints, Waves, Dumbbell, Trash2, Pencil, Target } from "lucide-react";
+import { Footprints, Waves, Dumbbell, Trash2, Pencil, Target, Copy } from "lucide-react";
 import { Workout, RunningData, SwimmingData, StrengthData, SwimmingMultiSetData, SwimmingSetData, DistanceUnit, WeightUnit, PoolUnit } from "./types";
 import { usePreferences } from "./usePreferences";
 import {
@@ -23,10 +23,11 @@ const LEGACY_DEFAULT_UNITS = {
   pool: "yd" as PoolUnit,            // 游泳默认 yd
 };
 
-export const WorkoutCard = ({ workout, onDelete, onEdit }: { 
+export const WorkoutCard = ({ workout, onDelete, onEdit, onCopy }: { 
   workout: Workout; 
   onDelete: (id: string) => void;
   onEdit?: (workout: Workout) => void;
+  onCopy?: (workout: Workout) => void;
 }) => {
   const { prefs } = usePreferences();
   const Icon = ICONS[workout.type];
@@ -135,6 +136,15 @@ export const WorkoutCard = ({ workout, onDelete, onEdit }: {
         {workout.notes && <p className="text-xs text-fit-muted/80 mt-1 truncate italic">"{workout.notes}"</p>}
       </div>
       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-smooth">
+        {onCopy && (
+          <button
+            onClick={() => onCopy(workout)}
+            className="p-1.5 rounded-md text-fit-muted hover:text-fit-accent"
+            aria-label="复制"
+          >
+            <Copy className="w-4 h-4" />
+          </button>
+        )}
         {onEdit && (
           <button
             onClick={() => onEdit(workout)}

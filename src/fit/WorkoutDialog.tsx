@@ -37,9 +37,10 @@ interface Props {
   onOpenChange: (v: boolean) => void;
   onSaved: () => void;
   editingWorkout?: Workout | null;
+  copyingWorkout?: Workout | null;  // 新增：复制模式
 }
 
-export const WorkoutDialog = ({ open, onOpenChange, onSaved, editingWorkout }: Props) => {
+export const WorkoutDialog = ({ open, onOpenChange, onSaved, editingWorkout, copyingWorkout }: Props) => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { prefs } = usePreferences();
@@ -48,6 +49,7 @@ export const WorkoutDialog = ({ open, onOpenChange, onSaved, editingWorkout }: P
 
   // common
   const [workoutDate, setWorkoutDate] = useState(todayYmd());
+  const [workoutTime, setWorkoutTime] = useState("12:00");  // 新增：时间字段
   const [notes, setNotes] = useState("");
   const [hours, setHours] = useState("0");
   const [minutes, setMinutes] = useState("");
@@ -101,6 +103,7 @@ export const WorkoutDialog = ({ open, onOpenChange, onSaved, editingWorkout }: P
       setTimeout(() => {
         setType(null);
         setWorkoutDate(todayYmd());
+        setWorkoutTime("12:00");  // 重置时间
         setNotes("");
         setHours("0"); setMinutes(""); setSeconds("0");
         setRunDistance(""); setMood(3);
@@ -122,12 +125,24 @@ export const WorkoutDialog = ({ open, onOpenChange, onSaved, editingWorkout }: P
       if (editingWorkout) {
         populateFormFromWorkout(editingWorkout);
       }
+      // 如果是复制模式，填充数据但日期设为今天
+      else if (copyingWorkout) {
+        populateFormFromWorkout(copyingWorkout, true);  // 第二个参数表示是复制模式
+      }
     }
-  }, [open, prefs, editingWorkout]);
+  }, [open, prefs, editingWorkout, copyingWorkout]);
 
-  const populateFormFromWorkout = (workout: Workout) => {
+  const populateFormFromWorkout = (workout: Workout, isCopyMode = false) => {
     setType(workout.type);
-    setWorkoutDate(workout.date.split('T')[0]);
+    // 从 ISO 字符串中提取日期和时间
+    const workoutDateTime = new Date(workout.date);
+    const datePart = workoutDateTime.toISOString().split('T')[0];
+    const hours = String(workoutDateTime.getHours()).padStart(2, '0');
+    const minutes = String(workoutDateTime.getMinutes()).padStart(2, '0');
+    const timePart = `${hours}:${minutes}`;
+    
+    setWorkoutDate(isCopyMode ? todayYmd() : datePart);
+    setWorkoutTime(timePart);  // 设置时间
     setNotes(workout.notes || "");
     
     if (workout.type === "running") {
@@ -177,18 +192,17 @@ export const WorkoutDialog = ({ open, onOpenChange, onSaved, editingWorkout }: P
     } else if (workout.type === "strength") {
       const data = workout.data as StrengthData;
       
-      // 检查是否是会话模式（有多个动作）
-      const isSessionMode = data.session === true && Array.isArray(data.exercises) && data.exercises.length > 0;
-      
-      if (isSessionMode) {
+      // 统一使用会话模式数据结构
+      // 检查是否是有效的会话数据
+      if (data.session === true && Array.isArray(data.exercises) && data.exercises.length > 0) {
         // 会话模式：加载所有动作和组数据
         const sessionExercises: StrengthSessionExercise[] = data.exercises.map((ex, idx) => ({
           id: `exercise-${idx}-${Date.now()}`,
           name: ex.name,
           done: ex.done || false,
           sets: (ex.sets || []).map(set => {
-            // 优先使用保存的输入单位，如果没有则使用旧数据默认单位（lb）
-            const displayUnit = ex.input_unit || LEGACY_DEFAULT_UNITS.weight;
+            // 优先使用保存的输入单位，如果没有则使用偏好设置或默认单位
+            const displayUnit = ex.input_unit || prefs.weight_unit || LEGACY_DEFAULT_UNITS.weight;
             const displayWeight = kgToDisplay(set.weight_kg, displayUnit);
             
             return {
@@ -202,16 +216,25 @@ export const WorkoutDialog = ({ open, onOpenChange, onSaved, editingWorkout }: P
         }));
         setStrengthExercises(sessionExercises);
       } else {
-        // 普通模式（单个动作）：为了向后兼容旧数据
-        // 注意：根据规范，新记录应统一使用会话模式
-        setExercise(data.exercise || "");
-        // 优先使用保存的输入单位，如果没有则使用旧数据默认单位（lb）
-        const displayUnit = data.input_unit || LEGACY_DEFAULT_UNITS.weight;
-        setWeight(kgToDisplay(data.weight_kg || 0, displayUnit).toFixed(1));
-        setWeightUnit(displayUnit);
-        setIsBodyweight(data.bodyweight || false);
-        setSets((data.sets || 0).toString());
-        setReps((data.reps || 0).toString());
+        // 旧数据或非标准数据：尝试将其转换为单个动作的会话模式以便编辑
+        // 这样既兼容了旧数据，又统一了前端状态管理
+        const exerciseName = data.exercise || "未知动作";
+        const displayUnit = data.input_unit || prefs.weight_unit || LEGACY_DEFAULT_UNITS.weight;
+        const displayWeight = kgToDisplay(data.weight_kg || 0, displayUnit);
+        
+        const fallbackExercises: StrengthSessionExercise[] = [{
+          id: `exercise-legacy-${Date.now()}`,
+          name: exerciseName,
+          done: false,
+          sets: [{
+            weight_kg: displayWeight,
+            reps: data.reps || 0,
+            bodyweight: data.bodyweight || false,
+            done: false,
+            weight_unit: displayUnit,
+          }],
+        }];
+        setStrengthExercises(fallbackExercises);
       }
     } else if (workout.type === "swimming_set") {
       const data = workout.data as SwimmingSetData;
@@ -544,9 +567,9 @@ export const WorkoutDialog = ({ open, onOpenChange, onSaved, editingWorkout }: P
       };
     }
 
-    const selectedDate = new Date(`${workoutDate}T12:00:00`);
+    const selectedDate = new Date(`${workoutDate}T${workoutTime}:00`);  // 修改：使用用户选择的时间
     if (Number.isNaN(selectedDate.getTime())) {
-      toast.error("请选择有效日期");
+      toast.error("请选择有效日期和时间");
       setSubmitting(false);
       return;
     }
@@ -594,7 +617,11 @@ export const WorkoutDialog = ({ open, onOpenChange, onSaved, editingWorkout }: P
       <DialogContent className="bg-fit-card border-fit-border text-fit-foreground max-w-md">
         <DialogHeader>
           <DialogTitle className="text-fit-foreground">
-            {editingWorkout ? `编辑 ${typeLabel(type ?? editingWorkout.type)}` : (type ? `记录 ${typeLabel(type)}` : "选择运动类型")}
+            {editingWorkout 
+              ? `编辑 ${typeLabel(type ?? editingWorkout.type)}` 
+              : copyingWorkout 
+                ? `复制 ${typeLabel(type ?? copyingWorkout.type)}` 
+                : (type ? `记录 ${typeLabel(type)}` : "选择运动类型")}
           </DialogTitle>
         </DialogHeader>
 
@@ -621,6 +648,16 @@ export const WorkoutDialog = ({ open, onOpenChange, onSaved, editingWorkout }: P
                 value={workoutDate}
                 onChange={(e) => setWorkoutDate(e.target.value)}
                 max={todayYmd()}
+                className="bg-fit-surface border-fit-border text-fit-foreground"
+              />
+            </div>
+            
+            <div>
+              <Label className="text-fit-muted text-xs mb-2 block">时间</Label>
+              <Input
+                type="time"
+                value={workoutTime}
+                onChange={(e) => setWorkoutTime(e.target.value)}
                 className="bg-fit-surface border-fit-border text-fit-foreground"
               />
             </div>
@@ -1384,9 +1421,10 @@ export const WorkoutDialog = ({ open, onOpenChange, onSaved, editingWorkout }: P
               disabled={submitting}
               className="bg-fit-accent text-fit-accent-foreground hover:bg-fit-accent/90 font-semibold"
             >
-              {submitting ? "保存中..." : (editingWorkout ? "更新记录" : "保存记录")}
+              {submitting ? "保存中..." : editingWorkout ? "更新记录" : copyingWorkout ? "保存副本" : "保存记录"}
             </Button>
           )}
+
         </DialogFooter>
       </DialogContent>
     </Dialog>

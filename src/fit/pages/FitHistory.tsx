@@ -12,11 +12,12 @@ interface OutletContext {
   reloadKey: number;
   onWorkoutSaved: () => void;
   onEditWorkout: (workout: Workout) => void;
+  onCopyWorkout: (workout: Workout) => void;  // 新增：复制功能
 }
 
 const FitHistory = () => {
   const { user } = useAuth();
-  const { reloadKey, onEditWorkout } = useOutletContext<OutletContext>();
+  const { reloadKey, onEditWorkout, onCopyWorkout } = useOutletContext<OutletContext>();  // 添加 onCopyWorkout
   const [workouts, setWorkouts] = useState<Workout[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -87,9 +88,11 @@ const FitHistory = () => {
                       workout={w} 
                       onDelete={handleDelete}
                       onEdit={onEditWorkout}
+                      onCopy={onCopyWorkout}  // 传递复制回调
                     />
                   ))}
                 </div>
+
               </section>
             ))}
           </div>
