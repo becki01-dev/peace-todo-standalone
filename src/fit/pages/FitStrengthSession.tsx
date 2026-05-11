@@ -44,7 +44,7 @@ const FitStrengthSession = () => {
   const { prefs } = usePreferences();
   const { onWorkoutSaved } = useOutletContext<{ onWorkoutSaved: () => void }>();
   const [workoutDate, setWorkoutDate] = useState(todayYmd());
-  const [workoutTime, setWorkoutTime] = useState("12:00");  // 新增：时间字段
+  const [workoutTime, setWorkoutTime] = useState(currentTimeHm());  // 修改：使用当前时间而不是固定的 12:00
   const [notes, setNotes] = useState("");
   const [customExercise, setCustomExercise] = useState("");
   const [exercises, setExercises] = useState<SessionExercise[]>([]);
@@ -123,12 +123,16 @@ const FitStrengthSession = () => {
     let normalized: Array<{
       name: string;
       done: boolean;
+      input_unit?: WeightUnit; // 添加 input_unit 字段
       sets: Array<{ weight_kg: number; reps: number; bodyweight: boolean; done: boolean }>;
     }>;
     try {
       normalized = exercises.map((exercise) => {
         if (!exercise.name.trim()) throw new Error("动作名称不能为空");
         if (exercise.sets.length === 0) throw new Error(`动作 ${exercise.name} 至少需要一组`);
+
+        // 确定该动作的单位（使用第一个组的单位）
+        const actionUnit = exercise.sets[0]?.weight_unit || prefs.weight_unit;
 
         const sets = exercise.sets.map((set) => {
           const reps = parseInt(set.reps);
@@ -150,6 +154,7 @@ const FitStrengthSession = () => {
         return {
           name: exercise.name.trim(),
           done: exercise.done,
+          input_unit: actionUnit, // 保存动作的输入单位
           sets,
         };
       });
@@ -306,8 +311,8 @@ const FitStrengthSession = () => {
                           type="button"
                           onClick={() =>
                             patchExercise(exercise.id, (e0) => {
-                              const sets = [...e0.sets];
-                              sets[i] = { ...sets[i], weight_unit: "kg" };
+                              // 更新该动作下所有组的单位，保持一致性
+                              const sets = e0.sets.map(s => ({ ...s, weight_unit: "kg" as const }));
                               return { ...e0, sets };
                             })
                           }
@@ -324,8 +329,8 @@ const FitStrengthSession = () => {
                           type="button"
                           onClick={() =>
                             patchExercise(exercise.id, (e0) => {
-                              const sets = [...e0.sets];
-                              sets[i] = { ...sets[i], weight_unit: "lb" };
+                              // 更新该动作下所有组的单位，保持一致性
+                              const sets = e0.sets.map(s => ({ ...s, weight_unit: "lb" as const }));
                               return { ...e0, sets };
                             })
                           }
@@ -446,6 +451,13 @@ function todayYmd() {
   const month = String(now.getMonth() + 1).padStart(2, "0");
   const day = String(now.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
+}
+
+function currentTimeHm() {
+  const now = new Date();
+  const hours = String(now.getHours()).padStart(2, "0");
+  const minutes = String(now.getMinutes()).padStart(2, "0");
+  return `${hours}:${minutes}`;
 }
 
 export default FitStrengthSession;

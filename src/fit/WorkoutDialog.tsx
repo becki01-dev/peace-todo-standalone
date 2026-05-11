@@ -103,7 +103,7 @@ export const WorkoutDialog = ({ open, onOpenChange, onSaved, editingWorkout, cop
       setTimeout(() => {
         setType(null);
         setWorkoutDate(todayYmd());
-        setWorkoutTime("12:00");  // 重置时间
+        setWorkoutTime(currentTimeHm());  // 修改：使用当前时间而不是固定的 12:00
         setNotes("");
         setHours("0"); setMinutes(""); setSeconds("0");
         setRunDistance(""); setMood(3);
@@ -196,24 +196,27 @@ export const WorkoutDialog = ({ open, onOpenChange, onSaved, editingWorkout, cop
       // 检查是否是有效的会话数据
       if (data.session === true && Array.isArray(data.exercises) && data.exercises.length > 0) {
         // 会话模式：加载所有动作和组数据
-        const sessionExercises: StrengthSessionExercise[] = data.exercises.map((ex, idx) => ({
-          id: `exercise-${idx}-${Date.now()}`,
-          name: ex.name,
-          done: ex.done || false,
-          sets: (ex.sets || []).map(set => {
-            // 优先使用保存的输入单位，如果没有则使用偏好设置或默认单位
-            const displayUnit = ex.input_unit || prefs.weight_unit || LEGACY_DEFAULT_UNITS.weight;
-            const displayWeight = kgToDisplay(set.weight_kg, displayUnit);
-            
-            return {
-              weight_kg: displayWeight,
-              reps: set.reps,
-              bodyweight: set.bodyweight || false,
-              done: set.done || false,
-              weight_unit: displayUnit,
-            };
-          }),
-        }));
+        const sessionExercises: StrengthSessionExercise[] = data.exercises.map((ex, idx) => {
+          // 优先使用保存的输入单位，如果没有则使用偏好设置或默认单位
+          const displayUnit = ex.input_unit || prefs.weight_unit || LEGACY_DEFAULT_UNITS.weight;
+          
+          return {
+            id: `exercise-${idx}-${Date.now()}`,
+            name: ex.name,
+            done: ex.done || false,
+            sets: (ex.sets || []).map(set => {
+              const displayWeight = kgToDisplay(set.weight_kg, displayUnit);
+              
+              return {
+                weight_kg: displayWeight,
+                reps: set.reps,
+                bodyweight: set.bodyweight || false,
+                done: set.done || false,
+                weight_unit: displayUnit,
+              };
+            }),
+          };
+        });
         setStrengthExercises(sessionExercises);
       } else {
         // 旧数据或非标准数据：尝试将其转换为单个动作的会话模式以便编辑
@@ -349,18 +352,6 @@ export const WorkoutDialog = ({ open, onOpenChange, onSaved, editingWorkout, cop
     const dur = hmsToSeconds(+segmentHours, +segmentMinutes, +segmentSeconds);
     const finalStroke = swimStroke === "__custom__" ? customSwimStroke.trim() : swimStroke;
 
-    // 调试日志
-    console.log(" Schwe addCurrentSet called:", {
-      poolLen,
-      swimUnit,
-      laps,
-      segmentHours,
-      segmentMinutes,
-      segmentSeconds,
-      parsed: { pl, lp, dur },
-      calculated_meters: poolInputToMeters(pl, swimUnit)
-    });
-
     if (!pl || !lp || !dur || !finalStroke) {
       toast.error("请填写泳姿、泳池长度、圈数和时长");
       return;
@@ -461,19 +452,6 @@ export const WorkoutDialog = ({ open, onOpenChange, onSaved, editingWorkout, cop
         return sum + (set.duration_seconds || 0);
       }, 0);
 
-      // 详细调试日志
-      console.log(" Schwe Swimming save calculation:", {
-        swimSets: swimSets.map(s => ({
-          pool_length_meters: s.pool_length_meters,
-          laps: s.laps,
-          input_unit: s.input_unit,
-          calculated_distance: s.pool_length_meters * s.laps
-        })),
-        totalDistanceMeters,
-        displayUnit: swimSets[0]?.input_unit || swimUnit,
-        displayValue: poolMetersToDisplay(totalDistanceMeters, swimSets[0]?.input_unit || swimUnit)
-      });
-
       data = {
         sets: swimSets.map(set => ({
           ...set,
@@ -484,13 +462,6 @@ export const WorkoutDialog = ({ open, onOpenChange, onSaved, editingWorkout, cop
         total_duration_seconds: totalDurationSeconds,
         mood: swimMood,
       };
-      
-      // 调试日志
-      console.log(" Schwe Swimming save debug:", {
-        swimSets,
-        totalDistanceMeters,
-        displayData: data
-      });
     } else if (type === "strength") {
       // 统一使用会话模式数据结构
       if (strengthExercises.length === 0) {
@@ -500,6 +471,7 @@ export const WorkoutDialog = ({ open, onOpenChange, onSaved, editingWorkout, cop
       }
 
       const totalSets = strengthExercises.reduce((sum, ex) => sum + ex.sets.length, 0);
+      
       data = {
         session: true,
         exercises: strengthExercises.map(ex => ({
@@ -728,23 +700,7 @@ export const WorkoutDialog = ({ open, onOpenChange, onSaved, editingWorkout, cop
                     <div className="border-t border-fit-border/50 pt-2 mt-2">
                       <p className="text-fit-muted text-xs mb-2">已添加片段</p>
                       <div className="space-y-1.5 max-h-32 overflow-y-auto">
-                        {swimSets.map((set, idx) => {
-                          // 调试日志
-                          if (idx === 0) {
-                            const displayValue = poolMetersToDisplay(set.pool_length_meters, set.input_unit || swimUnit);
-                            const formattedValue = formatNumber(displayValue, 0);
-                            console.log(" Schwe Fragment display debug:", {
-                              pool_length_meters: set.pool_length_meters,
-                              input_unit: set.input_unit,
-                              swimUnit,
-                              display_value_raw: displayValue,
-                              display_value_formatted: formattedValue,
-                              display_unit: set.input_unit || swimUnit,
-                              final_display_string: `${formattedValue} ${set.input_unit || swimUnit}`
-                            });
-                          }
-                          
-                          return (
+                        {swimSets.map((set, idx) => (
                           <div 
                             key={idx} 
                             className={cn(
@@ -786,8 +742,7 @@ export const WorkoutDialog = ({ open, onOpenChange, onSaved, editingWorkout, cop
                               </button>
                             </div>
                           </div>
-                          );
-                        })}
+                        ))}
                       </div>
                     </div>
                   </div>
@@ -1106,11 +1061,12 @@ export const WorkoutDialog = ({ open, onOpenChange, onSaved, editingWorkout, cop
                                           key={u}
                                           type="button"
                                           onClick={() => {
+                                            // 更新该动作下所有组的单位，保持一致性
                                             const updated = [...strengthExercises];
-                                            updated[exIdx].sets[setIdx] = {
-                                              ...set,
+                                            updated[exIdx].sets = updated[exIdx].sets.map(s => ({
+                                              ...s,
                                               weight_unit: u,
-                                            };
+                                            }));
                                             setStrengthExercises(updated);
                                           }}
                                           className={cn(
@@ -1500,6 +1456,13 @@ function todayYmd() {
   const month = String(now.getMonth() + 1).padStart(2, "0");
   const day = String(now.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
+}
+
+function currentTimeHm() {
+  const now = new Date();
+  const hours = String(now.getHours()).padStart(2, "0");
+  const minutes = String(now.getMinutes()).padStart(2, "0");
+  return `${hours}:${minutes}`;
 }
 
 const DurationField = ({
