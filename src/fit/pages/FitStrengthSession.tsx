@@ -11,6 +11,7 @@ import { usePreferences } from "../usePreferences";
 import { weightInputToKg } from "../units";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { todayYmd, currentTimeHm } from "../dates";
 
 type SessionSet = {
   weight: string;
@@ -444,20 +445,5 @@ const FitStrengthSession = () => {
     </div>
   );
 };
-
-function todayYmd() {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, "0");
-  const day = String(now.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
-
-function currentTimeHm() {
-  const now = new Date();
-  const hours = String(now.getHours()).padStart(2, "0");
-  const minutes = String(now.getMinutes()).padStart(2, "0");
-  return `${hours}:${minutes}`;
-}
 
 export default FitStrengthSession;
