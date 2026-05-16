@@ -69,6 +69,7 @@ export const TaskDialog = ({ open, onOpenChange, initial, onSubmit }: Props) => 
               placeholder="今天要做什么?"
               autoFocus
               required
+              maxLength={200}
             />
           </div>
           <div className="space-y-2">
@@ -83,12 +84,14 @@ export const TaskDialog = ({ open, onOpenChange, initial, onSubmit }: Props) => 
           </div>
           <div className="space-y-2">
             <Label>优先级</Label>
-            <div className="flex gap-2">
+            <div className="flex gap-2" role="radiogroup" aria-label="优先级">
               {priorityOptions.map((opt) => (
                 <button
                   key={opt.value}
                   type="button"
                   onClick={() => setPriority(opt.value)}
+                  role="radio"
+                  aria-checked={priority === opt.value}
                   className={cn(
                     "flex-1 py-2 px-3 rounded-lg border text-sm font-medium transition-smooth",
                     priority === opt.value
