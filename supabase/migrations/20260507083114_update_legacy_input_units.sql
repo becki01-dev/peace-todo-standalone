@@ -68,12 +68,12 @@ WHERE type = 'strength'
   AND data ? 'exercises'
   AND jsonb_typeof(data->'exercises') = 'array';
 
--- 更新跑步记录：将 input_unit 为 "km" 或不存在的情况更新为 "mile"
+-- 更新跑步记录：将 input_unit 为 "km" 或不存在的情况更新为 "mi"
 UPDATE workouts
 SET data = jsonb_set(
   data,
   '{input_unit}',
-  '"mile"'::jsonb
+  '"mi"'::jsonb
 )
 WHERE type = 'running'
   AND (

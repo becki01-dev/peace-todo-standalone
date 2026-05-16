@@ -18,7 +18,7 @@ const ICONS = {
 
 // 旧数据的默认单位（没有 input_unit 字段时使用）
 const LEGACY_DEFAULT_UNITS = {
-  distance: "mile" as DistanceUnit,  // 跑步默认 mile
+  distance: "mi" as DistanceUnit,  // 跑步默认 mi
   weight: "lb" as WeightUnit,        // 力量训练默认 lb
   pool: "yd" as PoolUnit,            // 游泳默认 yd
 };

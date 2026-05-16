@@ -64,22 +64,6 @@ export interface SwimmingSetData {
   input_unit?: PoolUnit; // 记录输入时使用的单位
 }
 
-// 专项游泳训练数据结构
-export interface SwimmingDrillSet {
-  count: number; // 每组个数
-  length_meters: number; // 每个长度（米）
-  target_time_seconds: number; // 要求时间（秒）
-  completed_count?: number; // 实际完成个数
-}
-
-export interface SwimmingDrillData {
-  sets: SwimmingDrillSet[];
-  total_required_count: number; // 总共要求完成个数
-  total_completed_count: number; // 实际完成总数
-  completion_rate: number; // 完成度百分比
-  notes?: string;
-}
-
 export interface StrengthData {
   exercise: string;
   weight_kg: number;
