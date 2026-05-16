@@ -96,6 +96,7 @@ export const WorkoutDialog = ({ open, onOpenChange, onSaved, editingWorkout, cop
     completedCount: string; // 实际完成总数
   };
   const [swimmingSets, setSwimmingSets] = useState<SwimmingSetItemInput[]>([]);
+  const [customExerciseName, setCustomExerciseName] = useState("");
 
   useEffect(() => {
     if (!open) {
@@ -969,26 +970,48 @@ export const WorkoutDialog = ({ open, onOpenChange, onSaved, editingWorkout, cop
                         <Dumbbell className="w-4 h-4" />
                         力量训练 ({strengthExercises.length} 个动作)
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const name = prompt("输入动作名称");
-                          if (name?.trim()) {
-                            setStrengthExercises([
-                              ...strengthExercises,
-                              {
+                    </div>
+
+                    <div className="flex gap-1">
+                      <Input
+                        value={customExerciseName}
+                        onChange={(e) => setCustomExerciseName(e.target.value)}
+                        placeholder="输入动作名称"
+                        maxLength={50}
+                        className="bg-fit-surface border-fit-border text-fit-foreground text-xs h-8"
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            const name = customExerciseName.trim();
+                            if (name) {
+                              setStrengthExercises([...strengthExercises, {
                                 id: `exercise-${Date.now()}`,
-                                name: name.trim(),
+                                name,
                                 done: false,
                                 sets: [{ weight_kg: 0, reps: 10, bodyweight: false, done: false, weight_unit: prefs.weight_unit }],
-                              },
-                            ]);
+                              }]);
+                              setCustomExerciseName("");
+                            }
                           }
                         }}
-                        className="text-fit-accent hover:text-fit-accent/80 transition-smooth"
+                      />
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={() => {
+                          const name = customExerciseName.trim();
+                          if (!name) return;
+                          setStrengthExercises([...strengthExercises, {
+                            id: `exercise-${Date.now()}`,
+                            name,
+                            done: false,
+                            sets: [{ weight_kg: 0, reps: 10, bodyweight: false, done: false, weight_unit: prefs.weight_unit }],
+                          }]);
+                          setCustomExerciseName("");
+                        }}
+                        className="bg-fit-accent text-fit-accent-foreground hover:bg-fit-accent/90 shrink-0"
                       >
                         <Plus className="w-4 h-4" />
-                      </button>
+                      </Button>
                     </div>
                     
                     <div className="space-y-2 max-h-60 overflow-y-auto">
