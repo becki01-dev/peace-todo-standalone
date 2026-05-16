@@ -22,9 +22,13 @@ const FitStats = () => {
     supabase
       .from("workouts")
       .select("*")
+      .eq("user_id", user.id)
       .order("date", { ascending: false })
       .then(({ data }) => {
         setWorkouts((data ?? []) as unknown as Workout[]);
+        setLoading(false);
+      })
+      .catch(() => {
         setLoading(false);
       });
   }, [user]);

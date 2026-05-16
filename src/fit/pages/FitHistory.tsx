@@ -24,12 +24,17 @@ const FitHistory = () => {
   const load = async () => {
     if (!user) return;
     setLoading(true);
-    const { data, error } = await supabase
-      .from("workouts")
-      .select("*")
-      .order("date", { ascending: false });
-    if (error) toast.error("加载失败");
-    else setWorkouts((data ?? []) as unknown as Workout[]);
+    try {
+      const { data, error } = await supabase
+        .from("workouts")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("date", { ascending: false });
+      if (error) toast.error("加载失败");
+      else setWorkouts((data ?? []) as unknown as Workout[]);
+    } catch {
+      toast.error("加载失败");
+    }
     setLoading(false);
   };
 

@@ -28,16 +28,20 @@ const FitAuth = () => {
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    if (mode === "signup") {
-      const { error } = await supabase.auth.signUp({
-        email, password,
-        options: { emailRedirectTo: `${window.location.origin}/auth` },
-      });
-      if (error) toast.error(error.message);
-      else toast.success("注册成功,开始记录!");
-    } else {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) toast.error(error.message);
+    try {
+      if (mode === "signup") {
+        const { error } = await supabase.auth.signUp({
+          email, password,
+          options: { emailRedirectTo: `${window.location.origin}/auth` },
+        });
+        if (error) toast.error(error.message);
+        else toast.success("注册成功,开始记录!");
+      } else {
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) toast.error(error.message);
+      }
+    } catch {
+      toast.error("操作失败,请重试");
     }
     setLoading(false);
   };

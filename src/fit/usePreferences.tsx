@@ -43,6 +43,9 @@ export const PreferencesProvider = ({ children }: { children: ReactNode }) => {
           });
         }
         setLoading(false);
+      })
+      .catch(() => {
+        setLoading(false);
       });
   }, [user]);
 

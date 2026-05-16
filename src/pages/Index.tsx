@@ -45,15 +45,20 @@ const Index = () => {
 
   const fetchTasks = async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from("tasks")
-      .select("*")
-      .order("is_completed", { ascending: true })
-      .order("created_at", { ascending: false });
-    if (error) {
+    try {
+      const { data, error } = await supabase
+        .from("tasks")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("is_completed", { ascending: true })
+        .order("created_at", { ascending: false });
+      if (error) {
+        toast.error("加载任务失败");
+      } else {
+        setTasks((data ?? []) as Task[]);
+      }
+    } catch {
       toast.error("加载任务失败");
-    } else {
-      setTasks((data ?? []) as Task[]);
     }
     setLoading(false);
   };
