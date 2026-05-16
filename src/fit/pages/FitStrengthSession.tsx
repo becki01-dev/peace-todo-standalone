@@ -289,7 +289,7 @@ const FitStrengthSession = () => {
 
             <div className="space-y-2">
               {exercise.sets.map((set, i) => (
-                <div key={i} className="grid grid-cols-[72px_1fr_auto_1fr_56px] gap-2 items-center">
+                <div key={`${exercise.id}-${i}`} className="grid grid-cols-[72px_1fr_auto_1fr_56px] gap-2 items-center">
                   <span className="text-xs text-fit-muted">第 {i + 1} 组</span>
                   <div className="flex gap-1">
                     <Input

@@ -701,8 +701,8 @@ export const WorkoutDialog = ({ open, onOpenChange, onSaved, editingWorkout, cop
                       <p className="text-fit-muted text-xs mb-2">已添加片段</p>
                       <div className="space-y-1.5 max-h-32 overflow-y-auto">
                         {swimSets.map((set, idx) => (
-                          <div 
-                            key={idx} 
+                          <div
+                            key={`${set.stroke}-${set.pool_length_meters}-${set.laps}-${idx}`}
                             className={cn(
                               "flex items-center justify-between bg-fit-surface rounded px-2 py-1.5 text-xs transition-smooth",
                               editingSetIndex === idx ? "border border-fit-accent" : ""
@@ -1015,7 +1015,7 @@ export const WorkoutDialog = ({ open, onOpenChange, onSaved, editingWorkout, cop
                           </div>
                           <div className="space-y-1.5">
                             {ex.sets.map((set, setIdx) => (
-                              <div key={setIdx} className="flex items-center gap-2">
+                              <div key={`${ex.id}-${setIdx}`} className="flex items-center gap-2">
                                 <span className="text-xs text-fit-muted w-12">第{setIdx + 1}组</span>
                                 <button
                                   type="button"
