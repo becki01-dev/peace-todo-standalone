@@ -169,11 +169,13 @@ const Index = () => {
         </div>
 
         <div className="max-w-2xl mx-auto px-4 sm:px-6 pb-3">
-          <div className="flex gap-1 p-1 bg-secondary rounded-lg">
+          <div className="flex gap-1 p-1 bg-secondary rounded-lg" role="tablist" aria-label="任务筛选">
             {FILTERS.map((f) => (
               <button
                 key={f.value}
                 onClick={() => setFilter(f.value)}
+                role="tab"
+                aria-selected={filter === f.value}
                 className={cn(
                   "flex-1 py-1.5 text-sm font-medium rounded-md transition-smooth",
                   filter === f.value ? "bg-surface shadow-card text-foreground" : "text-muted-foreground hover:text-foreground"

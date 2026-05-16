@@ -86,11 +86,13 @@ const FitStats = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex gap-1 p-1 bg-fit-card rounded-lg border border-fit-border">
+      <div className="flex gap-1 p-1 bg-fit-card rounded-lg border border-fit-border" role="tablist" aria-label="统计范围">
         {(["week", "month"] as Range[]).map((r) => (
           <button
             key={r}
             onClick={() => setRange(r)}
+            role="tab"
+            aria-selected={range === r}
             className={cn(
               "flex-1 py-1.5 text-sm font-medium rounded-md transition-smooth",
               range === r ? "bg-fit-accent text-fit-accent-foreground" : "text-fit-muted",

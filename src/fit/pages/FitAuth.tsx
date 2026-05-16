@@ -19,7 +19,13 @@ const FitAuth = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const from = (location.state as AuthLocationState | null)?.from ?? "/fit";
+  const from = (() => {
+    const raw = (location.state as AuthLocationState | null)?.from;
+    if (raw && (raw.startsWith("/fit") || raw.startsWith("/task") || raw === "/")) {
+      return raw;
+    }
+    return "/fit";
+  })();
 
   useEffect(() => {
     if (user) navigate(from, { replace: true });
