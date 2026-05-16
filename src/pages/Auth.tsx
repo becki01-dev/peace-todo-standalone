@@ -38,8 +38,9 @@ const Auth = () => {
         if (error) throw error;
         toast.success("欢迎回来 👋");
       }
-    } catch (err: any) {
-      toast.error(err.message ?? "操作失败,请重试");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "操作失败,请重试";
+      toast.error(message);
     } finally {
       setSubmitting(false);
     }
