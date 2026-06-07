@@ -1039,8 +1039,8 @@ export const WorkoutDialog = ({ open, onOpenChange, onSaved, editingWorkout, cop
                           </div>
                           <div className="space-y-1.5">
                             {ex.sets.map((set, setIdx) => (
-                              <div key={`${ex.id}-${setIdx}`} className="flex items-center gap-2">
-                                <span className="text-xs text-fit-muted w-12">第{setIdx + 1}组</span>
+                              <div key={`${ex.id}-${setIdx}`} className="flex items-center gap-2 flex-wrap">
+                                <span className="text-xs text-fit-muted w-12 shrink-0">第{setIdx + 1}组</span>
                                 <button
                                   type="button"
                                   onClick={() => {
@@ -1054,7 +1054,7 @@ export const WorkoutDialog = ({ open, onOpenChange, onSaved, editingWorkout, cop
                                     setStrengthExercises(updated);
                                   }}
                                   className={cn(
-                                    "px-2 py-1 rounded text-xs font-medium transition-smooth",
+                                    "px-2 py-1 rounded text-xs font-medium transition-smooth shrink-0",
                                     set.bodyweight
                                       ? "bg-fit-accent text-fit-accent-foreground"
                                       : "bg-fit-card text-fit-muted border border-fit-border"
@@ -1063,7 +1063,7 @@ export const WorkoutDialog = ({ open, onOpenChange, onSaved, editingWorkout, cop
                                   BW
                                 </button>
                                 {!set.bodyweight && (
-                                  <div className="flex items-center gap-1">
+                                  <div className="flex items-center gap-1 flex-1 min-w-[100px]">
                                     <input
                                       type="number"
                                       inputMode="decimal"
@@ -1077,9 +1077,9 @@ export const WorkoutDialog = ({ open, onOpenChange, onSaved, editingWorkout, cop
                                         setStrengthExercises(updated);
                                       }}
                                       placeholder="重量"
-                                      className="w-16 px-2 py-1 rounded bg-fit-card border border-fit-border text-fit-foreground text-xs"
+                                      className="min-w-0 flex-1 px-2 py-1 rounded bg-fit-card border border-fit-border text-fit-foreground text-xs"
                                     />
-                                    <div className="flex bg-fit-card border border-fit-border rounded p-0.5">
+                                    <div className="flex bg-fit-card border border-fit-border rounded p-0.5 shrink-0">
                                       {(["kg", "lb"] as WeightUnit[]).map((u) => (
                                         <button
                                           key={u}
@@ -1106,8 +1106,9 @@ export const WorkoutDialog = ({ open, onOpenChange, onSaved, editingWorkout, cop
                                     </div>
                                   </div>
                                 )}
-                                <span className="text-xs text-fit-muted">×</span>
-                                <input
+                                <div className="flex items-center gap-1 flex-1 min-w-[60px]">
+                                  <span className="text-xs text-fit-muted shrink-0">×</span>
+                                  <input
                                   type="number"
                                   inputMode="numeric"
                                   value={set.reps}
@@ -1120,9 +1121,10 @@ export const WorkoutDialog = ({ open, onOpenChange, onSaved, editingWorkout, cop
                                     setStrengthExercises(updated);
                                   }}
                                   placeholder="次数"
-                                  className="w-16 px-2 py-1 rounded bg-fit-card border border-fit-border text-fit-foreground text-xs"
+                                  className="min-w-0 flex-1 px-2 py-1 rounded bg-fit-card border border-fit-border text-fit-foreground text-xs"
                                 />
-                                <span className="text-xs text-fit-muted">次</span>
+                                  <span className="text-xs text-fit-muted shrink-0">次</span>
+                                </div>
                                 <button
                                   type="button"
                                   onClick={() => {
@@ -1130,7 +1132,7 @@ export const WorkoutDialog = ({ open, onOpenChange, onSaved, editingWorkout, cop
                                     updated[exIdx].sets.splice(setIdx, 1);
                                     setStrengthExercises(updated);
                                   }}
-                                  className="text-fit-muted hover:text-destructive transition-smooth ml-auto"
+                                  className="text-fit-muted hover:text-destructive transition-smooth shrink-0"
                                 >
                                   <Trash2 className="w-3.5 h-3.5" />
                                 </button>
