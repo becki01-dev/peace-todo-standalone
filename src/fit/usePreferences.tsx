@@ -4,9 +4,9 @@ import { useAuth } from "@/hooks/useAuth";
 import { UserPreferences, DistanceUnit, WeightUnit, PoolUnit } from "./types";
 
 const DEFAULTS: Omit<UserPreferences, "user_id"> = {
-  distance_unit: "km",
-  weight_unit: "kg",
-  pool_unit: "m",
+  distance_unit: "mi",
+  weight_unit: "lb",
+  pool_unit: "yd",
 };
 
 interface Ctx {
