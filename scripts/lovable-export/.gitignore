@@ -1,0 +1,4 @@
+# Sensitive: contains DB connection string (with password), user data backup,
+# and admin-only scripts. Never commit.
+*
+!.gitignore
