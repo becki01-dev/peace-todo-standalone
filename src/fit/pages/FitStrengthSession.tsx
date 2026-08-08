@@ -405,7 +405,7 @@ const FitStrengthSession = () => {
                 className="flex-1 bg-fit-surface border-fit-border text-fit-foreground hover:bg-fit-surface/80"
               >
                 <Plus className="w-4 h-4 mr-1" />
-                Add Set
+                添加一组
               </Button>
               <Button
                 type="button"
@@ -414,7 +414,7 @@ const FitStrengthSession = () => {
                 className="flex-1 bg-fit-surface border-fit-border text-fit-foreground hover:bg-fit-surface/80"
               >
                 <Copy className="w-4 h-4 mr-1" />
-                Copy Last Set
+                复制上一组
               </Button>
             </div>
           </section>

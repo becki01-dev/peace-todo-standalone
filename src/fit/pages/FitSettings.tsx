@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { usePreferences } from "../usePreferences";
 import { DistanceUnit, PoolUnit, WeightUnit } from "../types";
@@ -56,7 +57,7 @@ const FitSettings = () => {
       </Button>
 
       <p className="text-center text-xs text-fit-muted">
-        <a href="/" className="hover:text-fit-accent">← 返回 ZenTask</a>
+        <Link to="/" className="hover:text-fit-accent">← 返回 ZenTask</Link>
       </p>
     </div>
   );
