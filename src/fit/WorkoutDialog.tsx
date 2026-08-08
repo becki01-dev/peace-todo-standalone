@@ -22,6 +22,7 @@ import {
 } from "./units";
 import { usePreferences } from "./usePreferences";
 import { supabase } from "@/integrations/supabase/client";
+import type { Json } from "@/integrations/supabase/types";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { todayYmd, currentTimeHm } from "./dates";
@@ -424,7 +425,7 @@ export const WorkoutDialog = ({ open, onOpenChange, onSaved, editingWorkout, cop
     if (!user || !type) return;
     setSubmitting(true);
 
-    let data: Record<string, any> = {};
+    let data: Json = {};
     if (type === "running") {
       const d = parseFloat(runDistance);
       const dur = hmsToSeconds(+hours, +minutes, +seconds);
