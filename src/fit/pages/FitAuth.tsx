@@ -37,12 +37,13 @@ const FitAuth = () => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
       if (event === "PASSWORD_RECOVERY") {
         setResetMode(true);
-        setMode("signin");
+        setMode("reset");
       }
     });
     // 兜底：事件错过时 hash 可能仍带 type=recovery
     if (window.location.hash.includes("type=recovery")) {
       setResetMode(true);
+      setMode("reset");
     }
     return () => subscription.unsubscribe();
   }, []);
