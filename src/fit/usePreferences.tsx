@@ -62,6 +62,7 @@ export const PreferencesProvider = ({ children }: { children: ReactNode }) => {
   return <PrefsContext.Provider value={{ prefs, loading, update }}>{children}</PrefsContext.Provider>;
 };
 
+// eslint-disable-next-line react-refresh/only-export-components -- Provider 与 hook 同文件是项目惯例,改动时降级为全量刷新
 export const usePreferences = () => {
   const ctx = useContext(PrefsContext);
   if (!ctx) throw new Error("usePreferences must be used within PreferencesProvider");

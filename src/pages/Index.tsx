@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -27,23 +27,7 @@ const Index = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Task | null>(null);
 
-  useEffect(() => {
-    if (!authLoading && !user) {
-      navigate("/auth", { replace: true, state: { from: `${location.pathname}${location.search}` } });
-    }
-  }, [user, authLoading, navigate, location.pathname, location.search]);
-
-  useEffect(() => {
-    if (!user) return;
-    fetchTasks();
-  }, [user]);
-
-  useEffect(() => {
-    localStorage.setItem("zen:lastModule", "task");
-    localStorage.setItem("zen:lastHint", "上次你在整理待办，点击快速继续");
-  }, []);
-
-  const fetchTasks = async () => {
+  const fetchTasks = useCallback(async () => {
     setLoading(true);
     try {
       const { data, error } = await supabase
@@ -61,7 +45,23 @@ const Index = () => {
       toast.error("加载任务失败");
     }
     setLoading(false);
-  };
+  }, [user]);
+
+  useEffect(() => {
+    if (!authLoading && !user) {
+      navigate("/auth", { replace: true, state: { from: `${location.pathname}${location.search}` } });
+    }
+  }, [user, authLoading, navigate, location.pathname, location.search]);
+
+  useEffect(() => {
+    if (!user) return;
+    fetchTasks();
+  }, [user, fetchTasks]);
+
+  useEffect(() => {
+    localStorage.setItem("zen:lastModule", "task");
+    localStorage.setItem("zen:lastHint", "上次你在整理待办，点击快速继续");
+  }, []);
 
   const handleCreateOrUpdate = async (data: {
     title: string;

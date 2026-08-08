@@ -44,4 +44,5 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
 );
 Button.displayName = "Button";
 
+// eslint-disable-next-line react-refresh/only-export-components -- buttonVariants 是样式常量,供其他 ui 组件复用(shadcn 惯例)
 export { Button, buttonVariants };

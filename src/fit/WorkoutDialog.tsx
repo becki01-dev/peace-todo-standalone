@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -88,40 +88,8 @@ export const WorkoutDialog = ({ open, onOpenChange, onSaved, editingWorkout, cop
   };
   const [swimmingSets, setSwimmingSets] = useState<SwimmingSetItemInput[]>([]);
 
-  useEffect(() => {
-    if (!open) {
-      // reset on close
-      setTimeout(() => {
-        setType(null);
-        setWorkoutDate(todayYmd());
-        setWorkoutTime(currentTimeHm());  // 修改：使用当前时间而不是固定的 12:00
-        setNotes("");
-        setHours("0"); setMinutes(""); setSeconds("0");
-        setRunDistance(""); setMood(3);
-        setPoolLen("25"); setLaps("40"); setSwimStroke("自由泳"); setCustomSwimStroke(""); setSwimMood(3);
-        // 重置游泳片段相关状态
-        setSwimSets([]);
-        setEditingSetIndex(null);
-        setSegmentHours("0"); setSegmentMinutes(""); setSegmentSeconds("0");
-        // 重置专项游泳组状态
-        setSwimmingSets([]);
-      }, 200);
-    } else {
-      setRunUnit(prefs.distance_unit);
-      setSwimUnit(prefs.pool_unit);
-      
-      // 如果是编辑模式，填充数据
-      if (editingWorkout) {
-        populateFormFromWorkout(editingWorkout);
-      }
-      // 如果是复制模式，填充数据但日期设为今天
-      else if (copyingWorkout) {
-        populateFormFromWorkout(copyingWorkout, true);  // 第二个参数表示是复制模式
-      }
-    }
-  }, [open, prefs, editingWorkout, copyingWorkout]);
 
-  const populateFormFromWorkout = (workout: Workout, isCopyMode = false) => {
+  const populateFormFromWorkout = useCallback((workout: Workout, isCopyMode = false) => {
     // 力量训练统一走会话页编辑/复制,不会进入对话框
     if (workout.type === "strength") return;
     setType(workout.type);
@@ -210,7 +178,40 @@ export const WorkoutDialog = ({ open, onOpenChange, onSaved, editingWorkout, cop
       });
       setSwimmingSets(setInputs);
     }
-  };
+  }, []);
+  useEffect(() => {
+    if (!open) {
+      // reset on close
+      setTimeout(() => {
+        setType(null);
+        setWorkoutDate(todayYmd());
+        setWorkoutTime(currentTimeHm());  // 修改：使用当前时间而不是固定的 12:00
+        setNotes("");
+        setHours("0"); setMinutes(""); setSeconds("0");
+        setRunDistance(""); setMood(3);
+        setPoolLen("25"); setLaps("40"); setSwimStroke("自由泳"); setCustomSwimStroke(""); setSwimMood(3);
+        // 重置游泳片段相关状态
+        setSwimSets([]);
+        setEditingSetIndex(null);
+        setSegmentHours("0"); setSegmentMinutes(""); setSegmentSeconds("0");
+        // 重置专项游泳组状态
+        setSwimmingSets([]);
+      }, 200);
+    } else {
+      setRunUnit(prefs.distance_unit);
+      setSwimUnit(prefs.pool_unit);
+      
+      // 如果是编辑模式，填充数据
+      if (editingWorkout) {
+        populateFormFromWorkout(editingWorkout);
+      }
+      // 如果是复制模式，填充数据但日期设为今天
+      else if (copyingWorkout) {
+        populateFormFromWorkout(copyingWorkout, true);  // 第二个参数表示是复制模式
+      }
+    }
+  }, [open, prefs, editingWorkout, copyingWorkout, populateFormFromWorkout]);
+
 
   const calculatedSwimDistance = useMemo(() => {
     const pl = parseFloat(poolLen);
