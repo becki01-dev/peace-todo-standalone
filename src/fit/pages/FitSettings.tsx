@@ -1,14 +1,54 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { usePreferences } from "../usePreferences";
 import { DistanceUnit, PoolUnit, WeightUnit } from "../types";
 import { Button } from "@/components/ui/button";
-import { LogOut, Ruler, Dumbbell, Waves } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import { Download, LogOut, Ruler, Dumbbell, Waves } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { buildExportPayload, downloadJson } from "../exportData";
+import { todayYmd } from "../dates";
+import type { Task } from "@/types/task";
+import type { Workout } from "../types";
 
 const FitSettings = () => {
   const { user, signOut } = useAuth();
   const { prefs, update } = usePreferences();
+  const [exporting, setExporting] = useState(false);
+
+  const handleExport = async () => {
+    if (!user) return;
+    setExporting(true);
+    try {
+      const [tasksRes, workoutsRes, prefsRes] = await Promise.all([
+        supabase.from("tasks").select("*").eq("user_id", user.id),
+        supabase.from("workouts").select("*").eq("user_id", user.id).order("date", { ascending: true }),
+        supabase.from("user_preferences").select("*").eq("user_id", user.id).maybeSingle(),
+      ]);
+      if (tasksRes.error || workoutsRes.error || prefsRes.error) {
+        throw new Error("读取数据失败");
+      }
+      downloadJson(
+        `peace-data-${todayYmd()}.json`,
+        buildExportPayload(
+          {
+            tasks: (tasksRes.data ?? []) as unknown as Task[],
+            workouts: (workoutsRes.data ?? []) as unknown as Workout[],
+            preferences: (prefsRes.data ?? null) as Record<string, unknown> | null,
+          },
+          user,
+          new Date().toISOString(),
+        ),
+      );
+      toast.success("数据已导出");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "导出失败");
+    } finally {
+      setExporting(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -45,6 +85,24 @@ const FitSettings = () => {
         <p className="text-xs text-fit-muted mt-3 px-1">
           数据始终以公制存储,仅改变历史列表的显示单位。
         </p>
+      </section>
+
+      <section>
+        <h2 className="text-xs font-semibold text-fit-muted uppercase tracking-wider mb-3 px-1">数据</h2>
+        <div className="p-4 rounded-xl bg-fit-card border border-fit-border space-y-2">
+          <Button
+            onClick={handleExport}
+            disabled={exporting}
+            variant="outline"
+            className="w-full bg-fit-surface border-fit-border text-fit-foreground hover:bg-fit-surface/80"
+          >
+            <Download className="w-4 h-4 mr-2" />
+            {exporting ? "导出中..." : "导出全部数据 (JSON)"}
+          </Button>
+          <p className="text-xs text-fit-muted">
+            包含任务、训练记录与偏好设置(原始公制数据),用于备份或迁移。
+          </p>
+        </div>
       </section>
 
       <Button
