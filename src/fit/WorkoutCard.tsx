@@ -135,7 +135,8 @@ export const WorkoutCard = ({ workout, onDelete, onEdit, onCopy }: {
         <p className="text-xs text-fit-muted mt-0.5 truncate">{secondary}</p>
         {workout.notes && <p className="text-xs text-fit-muted/80 mt-1 truncate italic">"{workout.notes}"</p>}
       </div>
-      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-smooth">
+      {/* 手机端(触摸无 hover)常显操作按钮,桌面端 hover 显示 */}
+      <div className="flex items-center gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-smooth">
         {onCopy && (
           <button
             onClick={() => onCopy(workout)}

@@ -72,11 +72,21 @@ const FitLayoutInner = () => {
           reloadKey, 
           onWorkoutSaved: () => setReloadKey((k) => k + 1),
           onEditWorkout: (workout: Workout) => {
+            // 力量训练用统一的会话表单编辑(锁日期时间),其余类型走对话框
+            if (workout.type === "strength") {
+              navigate(`/fit/strength/session?edit=${workout.id}`);
+              return;
+            }
             setEditingWorkout(workout);
             setCopyingWorkout(null);
             setDialogOpen(true);
           },
           onCopyWorkout: (workout: Workout) => {
+            // 力量训练复制也走统一的会话表单(新纪录,日期可改)
+            if (workout.type === "strength") {
+              navigate(`/fit/strength/session?copy=${workout.id}`);
+              return;
+            }
             setCopyingWorkout(workout);
             setEditingWorkout(null);
             setDialogOpen(true);
