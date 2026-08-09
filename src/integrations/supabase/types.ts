@@ -21,7 +21,7 @@ export type Database = {
           due_date: string | null
           id: string
           is_completed: boolean
-          priority: string
+          priority: Database["public"]["Enums"]["task_priority"]
           title: string
           updated_at: string
           user_id: string
@@ -32,7 +32,7 @@ export type Database = {
           due_date?: string | null
           id?: string
           is_completed?: boolean
-          priority?: string
+          priority?: Database["public"]["Enums"]["task_priority"]
           title: string
           updated_at?: string
           user_id: string
@@ -43,7 +43,7 @@ export type Database = {
           due_date?: string | null
           id?: string
           is_completed?: boolean
-          priority?: string
+          priority?: Database["public"]["Enums"]["task_priority"]
           title?: string
           updated_at?: string
           user_id?: string
@@ -53,27 +53,27 @@ export type Database = {
       user_preferences: {
         Row: {
           created_at: string
-          distance_unit: string
-          pool_unit: string
+          distance_unit: Database["public"]["Enums"]["unit_distance"]
+          pool_unit: Database["public"]["Enums"]["unit_pool"]
           updated_at: string
           user_id: string
-          weight_unit: string
+          weight_unit: Database["public"]["Enums"]["unit_weight"]
         }
         Insert: {
           created_at?: string
-          distance_unit?: string
-          pool_unit?: string
+          distance_unit?: Database["public"]["Enums"]["unit_distance"]
+          pool_unit?: Database["public"]["Enums"]["unit_pool"]
           updated_at?: string
           user_id: string
-          weight_unit?: string
+          weight_unit?: Database["public"]["Enums"]["unit_weight"]
         }
         Update: {
           created_at?: string
-          distance_unit?: string
-          pool_unit?: string
+          distance_unit?: Database["public"]["Enums"]["unit_distance"]
+          pool_unit?: Database["public"]["Enums"]["unit_pool"]
           updated_at?: string
           user_id?: string
-          weight_unit?: string
+          weight_unit?: Database["public"]["Enums"]["unit_weight"]
         }
         Relationships: []
       }
@@ -84,7 +84,7 @@ export type Database = {
           date: string
           id: string
           notes: string | null
-          type: string
+          type: Database["public"]["Enums"]["workout_type"]
           updated_at: string
           user_id: string
         }
@@ -94,7 +94,7 @@ export type Database = {
           date?: string
           id?: string
           notes?: string | null
-          type: string
+          type: Database["public"]["Enums"]["workout_type"]
           updated_at?: string
           user_id: string
         }
@@ -104,7 +104,7 @@ export type Database = {
           date?: string
           id?: string
           notes?: string | null
-          type?: string
+          type?: Database["public"]["Enums"]["workout_type"]
           updated_at?: string
           user_id?: string
         }
@@ -118,7 +118,11 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      task_priority: "high" | "medium" | "low"
+      unit_distance: "km" | "mi"
+      unit_pool: "m" | "yd"
+      unit_weight: "kg" | "lb"
+      workout_type: "running" | "swimming" | "strength" | "swimming_set"
     }
     CompositeTypes: {
       [_ in never]: never
