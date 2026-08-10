@@ -1,4 +1,14 @@
-import { DistanceUnit, PoolUnit, WeightUnit } from "./types";
+import {
+  DistanceUnit,
+  PoolUnit,
+  WeightUnit,
+  Workout,
+  RunningData,
+  SwimmingData,
+  SwimmingMultiSetData,
+  SwimmingSetData,
+  StrengthData,
+} from "./types";
 
 // ---- Distance (base: meters) ----
 export const metersToDisplay = (meters: number, unit: DistanceUnit): number => {
@@ -70,4 +80,68 @@ export const estimateKcal = (
     return Math.round(data.sets * data.reps * 0.5);
   }
   return 0;
+};
+
+// ---- Workout 跨格式统一读取(统计口径,与 WorkoutCard 展示逻辑一致) ----
+
+/** 游泳数据是否为多片段格式(新格式含 sets 数组) */
+const isMultiSetSwimming = (d: unknown): d is SwimmingMultiSetData =>
+  !!d && typeof d === "object" && "sets" in d && Array.isArray((d as SwimmingMultiSetData).sets);
+
+/** 单次训练的总距离(米):兼容 旧单条/新多片段/专项游泳组 */
+export const workoutDistanceMeters = (w: Workout): number => {
+  if (w.type === "running") return (w.data as RunningData).distance_meters || 0;
+  if (w.type === "swimming") {
+    const d = w.data as SwimmingData | SwimmingMultiSetData;
+    return isMultiSetSwimming(d) ? d.total_distance_meters || 0 : d.distance_meters || 0;
+  }
+  if (w.type === "swimming_set") {
+    // 专项组:按每个训练组 实际完成数 × 单次长度(未填完成数时按全量要求数)
+    const d = w.data as SwimmingSetData;
+    return d.sets.reduce((sum, s) => {
+      const completed = s.completed_count ?? s.sets_count * s.count_per_set;
+      return sum + completed * s.length_meters;
+    }, 0);
+  }
+  return 0;
+};
+
+/** 单次训练的总时长(秒):专项组无实际用时,按 要求时间×实际完成组数 估算 */
+export const workoutDurationSeconds = (w: Workout): number => {
+  if (w.type === "running") return (w.data as RunningData).duration_seconds || 0;
+  if (w.type === "swimming") {
+    const d = w.data as SwimmingData | SwimmingMultiSetData;
+    return isMultiSetSwimming(d) ? d.total_duration_seconds || 0 : d.duration_seconds || 0;
+  }
+  if (w.type === "swimming_set") {
+    // 实际完成组数 = 完成总数 ÷ 每组个数(未填完成数时按全量组数)
+    const d = w.data as SwimmingSetData;
+    return d.sets.reduce((sum, s) => {
+      const completedSets =
+        s.count_per_set > 0 ? (s.completed_count ?? s.sets_count * s.count_per_set) / s.count_per_set : s.sets_count;
+      return sum + completedSets * (s.target_time_seconds || 0);
+    }, 0);
+  }
+  return 0;
+};
+
+/** 单次训练的预估卡路里:兼容四种类型的新旧格式 */
+export const estimateWorkoutKcal = (w: Workout): number => {
+  if (w.type === "running") return estimateKcal("running", w.data as RunningData);
+  if (w.type === "swimming") {
+    const d = w.data as SwimmingData | SwimmingMultiSetData;
+    return estimateKcal("swimming", {
+      duration_seconds: isMultiSetSwimming(d) ? d.total_duration_seconds : d.duration_seconds,
+    });
+  }
+  if (w.type === "swimming_set") {
+    // 与游泳同一速率(9 kcal/分钟),时长按要求时间估算
+    return estimateKcal("swimming", { duration_seconds: workoutDurationSeconds(w) });
+  }
+  const d = w.data as StrengthData;
+  if (d.session && Array.isArray(d.exercises) && d.exercises.length > 0) {
+    // 会话格式:按总组数估算(与单动作 sets×reps 同速率)
+    return Math.round((d.sets || 0) * 0.5);
+  }
+  return estimateKcal("strength", d);
 };

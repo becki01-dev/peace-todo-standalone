@@ -1,11 +1,18 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { Workout, RunningData, SwimmingData, StrengthData } from "../types";
+import { Workout } from "../types";
 import { usePreferences } from "../usePreferences";
-import { estimateKcal, formatDuration, formatNumber, metersToDisplay } from "../units";
+import {
+  workoutDistanceMeters,
+  workoutDurationSeconds,
+  estimateWorkoutKcal,
+  formatDuration,
+  formatNumber,
+  metersToDisplay,
+} from "../units";
 import { FitEmptyState } from "../EmptyState";
-import { Footprints, Waves, Dumbbell } from "lucide-react";
+import { Footprints, Waves, Dumbbell, Target } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type Range = "week" | "month";
@@ -43,23 +50,12 @@ const FitStats = () => {
 
   const totals = useMemo(() => {
     let meters = 0, seconds = 0, kcal = 0;
-    const byType = { running: 0, swimming: 0, strength: 0 };
+    const byType = { running: 0, swimming: 0, strength: 0, swimming_set: 0 };
     filtered.forEach((w) => {
       byType[w.type]++;
-      if (w.type === "running") {
-        const d = w.data as RunningData;
-        meters += d.distance_meters || 0;
-        seconds += d.duration_seconds || 0;
-        kcal += estimateKcal("running", d);
-      } else if (w.type === "swimming") {
-        const d = w.data as SwimmingData;
-        meters += d.distance_meters || 0;
-        seconds += d.duration_seconds || 0;
-        kcal += estimateKcal("swimming", d);
-      } else {
-        const d = w.data as StrengthData;
-        kcal += estimateKcal("strength", d);
-      }
+      meters += workoutDistanceMeters(w);
+      seconds += workoutDurationSeconds(w);
+      kcal += estimateWorkoutKcal(w);
     });
     return { meters, seconds, kcal, byType, count: filtered.length };
   }, [filtered]);
@@ -82,7 +78,8 @@ const FitStats = () => {
   }, [filtered, days]);
 
   const maxCount = Math.max(1, ...chartData.map((x) => x.count));
-  const totalType = totals.byType.running + totals.byType.swimming + totals.byType.strength || 1;
+  const totalType =
+    totals.byType.running + totals.byType.swimming + totals.byType.strength + totals.byType.swimming_set || 1;
 
   return (
     <div className="space-y-6">
@@ -139,6 +136,7 @@ const FitStats = () => {
               <TypeRow icon={Footprints} label="跑步" count={totals.byType.running} total={totalType} />
               <TypeRow icon={Waves} label="游泳" count={totals.byType.swimming} total={totalType} />
               <TypeRow icon={Dumbbell} label="力量" count={totals.byType.strength} total={totalType} />
+              <TypeRow icon={Target} label="专项组" count={totals.byType.swimming_set} total={totalType} />
             </div>
           </div>
         </>

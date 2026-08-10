@@ -1,6 +1,13 @@
 import { useMemo, useState } from "react";
-import { Workout, RunningData, SwimmingData, StrengthData } from "./types";
-import { estimateKcal, formatDuration, formatNumber, metersToDisplay } from "./units";
+import { Workout } from "./types";
+import {
+  workoutDistanceMeters,
+  workoutDurationSeconds,
+  estimateWorkoutKcal,
+  formatDuration,
+  formatNumber,
+  metersToDisplay,
+} from "./units";
 import { usePreferences } from "./usePreferences";
 import { Flame, Clock, MapPin } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -22,20 +29,9 @@ export const SummaryCard = ({ workouts }: { workouts: Workout[] }) => {
     let meters = 0;
 
     weekItems.forEach((w) => {
-      if (w.type === "running") {
-        const d = w.data as RunningData;
-        kcal += estimateKcal("running", d);
-        seconds += d.duration_seconds || 0;
-        meters += d.distance_meters || 0;
-      } else if (w.type === "swimming") {
-        const d = w.data as SwimmingData;
-        kcal += estimateKcal("swimming", d);
-        seconds += d.duration_seconds || 0;
-        meters += d.distance_meters || 0;
-      } else {
-        const d = w.data as StrengthData;
-        kcal += estimateKcal("strength", d);
-      }
+      kcal += estimateWorkoutKcal(w);
+      seconds += workoutDurationSeconds(w);
+      meters += workoutDistanceMeters(w);
     });
 
     return { kcal, seconds, meters, count: weekItems.length };
