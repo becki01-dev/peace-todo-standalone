@@ -3,20 +3,28 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Workout, WorkoutType } from "../types";
 import { usePreferences } from "../usePreferences";
-import { formatDuration, formatNumber, metersToDisplay } from "../units";
+import {
+  formatDuration,
+  formatNumber,
+  metersToDisplay,
+  kgToDisplay,
+  workoutDistanceMeters,
+  workoutVolumeKg,
+} from "../units";
 import {
   rangeWindow,
   shiftWindow,
-  shiftDays,
   inWindowRange,
   sumWorkouts,
   pctChange,
   formatPct,
   bucketWindow,
+  seriesByType,
   ymdDaysAgo,
 } from "../stats";
 import { todayYmd } from "../dates";
 import { FitEmptyState } from "../EmptyState";
+import { TrendChart } from "../TrendChart";
 import { Footprints, Waves, Dumbbell, Target, TrendingUp, TrendingDown, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
@@ -36,6 +44,13 @@ const TYPE_DEFS: { key: WorkoutType; label: string; icon: React.ComponentType<{ 
   { key: "strength", label: "力量", icon: Dumbbell },
   { key: "swimming_set", label: "专项组", icon: Target },
 ];
+
+// 折线颜色:跑步=品牌绿,游泳=sky-400(区分度过 dataviz validator),力量=品牌绿(单线卡标题即身份)
+const LINE_COLORS = {
+  running: "hsl(84 100% 59%)",
+  swimming: "hsl(199 93% 60%)",
+  strength: "hsl(84 100% 59%)",
+};
 
 const FitStats = () => {
   const { user } = useAuth();
@@ -105,19 +120,49 @@ const FitStats = () => {
   const totalType =
     rangeSums.byType.running + rangeSums.byType.swimming + rangeSums.byType.strength + rangeSums.byType.swimming_set || 1;
 
-  // Bar chart:桶起点来自 window(自定义区间可能不以今天结束),超过 60 根自动聚合
-  const chartData = useMemo(() => {
-    if (!window) return [];
-    const buckets = bucketWindow(window.start, window.endExclusive, 60);
-    visible.forEach((w) => {
-      const d = new Date(w.date);
-      const b = buckets.find((x) => d >= x.start && d < shiftDays(x.start, x.days));
-      if (b) b.count++;
-    });
-    return buckets;
-  }, [window, visible]);
+  // 折线图:桶起点来自 window(自定义区间可能不以今天结束),超过 60 根自动聚合
+  const buckets = useMemo(
+    () => (window ? bucketWindow(window.start, window.endExclusive, 60) : []),
+    [window],
+  );
 
-  const maxCount = Math.max(1, ...chartData.map((x) => x.count));
+  // 距离卡:游泳线 = swimming + swimming_set(指标级合并;筛选专项组时游泳线即专项组距离)
+  const distanceSeries = useMemo(() => {
+    const perType = seriesByType(visible, buckets, workoutDistanceMeters);
+    const s = [
+      {
+        key: "running",
+        label: "跑步",
+        color: LINE_COLORS.running,
+        values: perType.running.map((v) => metersToDisplay(v, prefs.distance_unit)),
+      },
+      {
+        key: "swimming",
+        label: "游泳",
+        color: LINE_COLORS.swimming,
+        values: perType.swimming.map((v, i) => metersToDisplay(v + perType.swimming_set[i], prefs.distance_unit)),
+      },
+    ];
+    return s.filter((x) => x.values.some((v) => v > 0)); // 滤空,单线时无图例
+  }, [visible, buckets, prefs.distance_unit]);
+
+  // 重量卡:力量线(显示单位跟随偏好,内部按 kg 累加)
+  const weightSeries = useMemo(() => {
+    const s = [
+      {
+        key: "strength",
+        label: "力量",
+        color: LINE_COLORS.strength,
+        values: seriesByType(visible, buckets, workoutVolumeKg).strength.map((v) => kgToDisplay(v, prefs.weight_unit)),
+      },
+    ];
+    return s.filter((x) => x.values.some((v) => v > 0));
+  }, [visible, buckets, prefs.weight_unit]);
+
+  const xLabels = useMemo(
+    () => buckets.map((b, i) => (buckets.length <= 7 || i % 5 === 0 ? String(b.start.getDate()) : null)),
+    [buckets],
+  );
 
   return (
     <div className="space-y-6">
@@ -184,22 +229,28 @@ const FitStats = () => {
           <Stat label="预估消耗" value={`${totals.kcal} kcal`} large delta={deltas.kcal} deltaLabel={deltaLabel} />
 
           {inWindow.length > 0 && (
-            <div className="p-4 rounded-xl bg-fit-card border border-fit-border">
-              <h3 className="text-xs text-fit-muted uppercase tracking-wider mb-4">每日训练次数</h3>
-              <div className="flex items-end justify-between gap-1 h-32">
-                {chartData.map((d, i) => (
-                  <div key={i} className="flex-1 flex flex-col items-center gap-1">
-                    <div
-                      className="w-full bg-fit-accent rounded-sm transition-all"
-                      style={{ height: `${(d.count / maxCount) * 100}%`, minHeight: d.count ? "4px" : "0" }}
-                    />
-                    {(chartData.length <= 7 || i % 5 === 0) && (
-                      <span className="text-[9px] text-fit-muted">{d.start.getDate()}</span>
-                    )}
-                  </div>
-                ))}
+            <>
+              <div className="p-4 rounded-xl bg-fit-card border border-fit-border">
+                <h3 className="text-xs text-fit-muted uppercase tracking-wider mb-4">
+                  每日训练距离 ({prefs.distance_unit})
+                </h3>
+                {distanceSeries.length > 0 ? (
+                  <TrendChart series={distanceSeries} xLabels={xLabels} ariaLabel="每日训练距离趋势" />
+                ) : (
+                  <div className="h-40 flex items-center justify-center text-xs text-fit-muted">暂无距离数据</div>
+                )}
               </div>
-            </div>
+              <div className="p-4 rounded-xl bg-fit-card border border-fit-border">
+                <h3 className="text-xs text-fit-muted uppercase tracking-wider mb-4">
+                  每日训练重量 ({prefs.weight_unit})
+                </h3>
+                {weightSeries.length > 0 ? (
+                  <TrendChart series={weightSeries} xLabels={xLabels} ariaLabel="每日训练总重量趋势" />
+                ) : (
+                  <div className="h-40 flex items-center justify-center text-xs text-fit-muted">暂无重量数据</div>
+                )}
+              </div>
+            </>
           )}
 
           <div className="p-4 rounded-xl bg-fit-card border border-fit-border">

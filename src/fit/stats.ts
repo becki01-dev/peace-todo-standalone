@@ -124,6 +124,31 @@ export interface Bucket {
   count: number;
 }
 
+/** 按类型把每桶数值累加(与 buckets 对齐,不落桶的忽略);桶定位沿用 shiftDays 语义(末桶 days 记整 size) */
+export const seriesByType = (
+  items: Workout[],
+  buckets: Bucket[],
+  valueOf: (w: Workout) => number,
+): Record<WorkoutType, number[]> => {
+  const acc: Record<WorkoutType, number[]> = {
+    running: buckets.map(() => 0),
+    swimming: buckets.map(() => 0),
+    strength: buckets.map(() => 0),
+    swimming_set: buckets.map(() => 0),
+  };
+  items.forEach((w) => {
+    const d = new Date(w.date);
+    for (let i = 0; i < buckets.length; i++) {
+      const b = buckets[i];
+      if (d >= b.start && d < shiftDays(b.start, b.days)) {
+        acc[w.type][i] += valueOf(w);
+        break;
+      }
+    }
+  });
+  return acc;
+};
+
 /** 把 [start, endExclusive) 按天分桶,超过 maxBars 根时聚合(桶跨多天) */
 export const bucketWindow = (start: Date, endExclusive: Date, maxBars = 60): Bucket[] => {
   const totalMs = endExclusive.getTime() - start.getTime();

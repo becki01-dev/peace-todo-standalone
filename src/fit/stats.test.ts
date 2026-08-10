@@ -11,9 +11,11 @@ import {
   pctChange,
   formatPct,
   bucketWindow,
+  seriesByType,
   startOfDay,
   shiftDays,
 } from "./stats";
+import { workoutDistanceMeters, workoutVolumeKg } from "./units";
 import type { Workout } from "./types";
 
 // 固定"今天" = 2026-08-10(本地)
@@ -190,5 +192,116 @@ describe("bucketWindow", () => {
     const buckets = bucketWindow(start, end, 60);
     expect(buckets).toHaveLength(7);
     expect(buckets[0].start).toEqual(startOfDay(start));
+  });
+});
+
+describe("seriesByType", () => {
+  it("按桶聚合,类型分列,窗口外忽略", () => {
+    const buckets = bucketWindow(new Date(2026, 7, 3), new Date(2026, 7, 10), 60); // 7 桶
+    const items = [
+      workout({ type: "running", date: isoOfYmd("2026-08-04"), data: { distance_meters: 5000, duration_seconds: 1800, mood: 3 } }),
+      workout({ type: "running", date: isoOfYmd("2026-08-04"), data: { distance_meters: 2000, duration_seconds: 600, mood: 3 } }),
+      workout({ type: "swimming", date: isoOfYmd("2026-08-06"), data: { sets: [], total_distance_meters: 1000, total_duration_seconds: 600, mood: 3 } }),
+      workout({ type: "running", date: isoOfYmd("2026-08-02"), data: { distance_meters: 9999, duration_seconds: 999, mood: 3 } }), // 窗口外
+    ];
+    const s = seriesByType(items, buckets, (w) => workoutDistanceMeters(w));
+    expect(s.running[1]).toBe(7000); // 08-04 两笔合并
+    expect(s.running[0]).toBe(0);
+    expect(s.swimming[3]).toBe(1000); // 08-06
+    expect(s.running[0] + s.running[1] + s.running[2] + s.running[3] + s.running[4] + s.running[5] + s.running[6]).toBe(7000);
+    expect(s.strength.every((v) => v === 0)).toBe(true);
+  });
+
+  it("自定义 valueOf 回调(总重量)", () => {
+    const buckets = bucketWindow(new Date(2026, 7, 3), new Date(2026, 7, 10), 60);
+    const items = [
+      workout({ type: "strength", date: isoOfYmd("2026-08-05"), data: { exercise: "卧推", weight_kg: 60, sets: 3, reps: 10 } }),
+    ];
+    const s = seriesByType(items, buckets, workoutVolumeKg);
+    expect(s.strength[2]).toBe(1800);
+  });
+});
+
+describe("workoutVolumeKg", () => {
+  it("单动作:weight×sets×reps", () => {
+    const w = workout({ type: "strength", data: { exercise: "卧推", weight_kg: 60, sets: 3, reps: 10 } });
+    expect(workoutVolumeKg(w)).toBe(1800);
+  });
+
+  it("单动作 bodyweight → 0(即使 weight_kg 非零)", () => {
+    const w = workout({ type: "strength", data: { exercise: "引体", weight_kg: 60, bodyweight: true, sets: 3, reps: 10 } });
+    expect(workoutVolumeKg(w)).toBe(0);
+  });
+
+  it("会话:per-set 累加,不按 done 过滤(表单默认 done:false),bodyweight 组不计", () => {
+    const w = workout({
+      type: "strength",
+      data: {
+        exercise: "",
+        weight_kg: 0,
+        sets: 4,
+        session: true,
+        exercises: [
+          {
+            name: "卧推",
+            done: true,
+            sets: [
+              { weight_kg: 60, reps: 8, bodyweight: false, done: true },
+              { weight_kg: 60, reps: 8, bodyweight: false, done: true },
+            ],
+          },
+          {
+            name: "深蹲",
+            done: true,
+            sets: [
+              { weight_kg: 100, reps: 5, bodyweight: false, done: false }, // 未勾完成,仍计入
+              { weight_kg: 100, reps: 5, bodyweight: false, done: true },
+            ],
+          },
+          {
+            name: "引体",
+            done: true,
+            sets: [{ weight_kg: 0, reps: 10, bodyweight: true, done: true }], // 自重,不计
+          },
+        ],
+      },
+    });
+    // 60×8×2 + 100×5×2 = 1960
+    expect(workoutVolumeKg(w)).toBe(1960);
+  });
+
+  it("会话:动作整体 done:false 也不影响统计", () => {
+    const w = workout({
+      type: "strength",
+      data: {
+        exercise: "",
+        weight_kg: 0,
+        sets: 2,
+        session: true,
+        exercises: [
+          { name: "划船", done: false, sets: [{ weight_kg: 50, reps: 10, bodyweight: false, done: false }] },
+          { name: "二头", done: true, sets: [{ weight_kg: 30, reps: 12, bodyweight: false, done: true }] },
+        ],
+      },
+    });
+    expect(workoutVolumeKg(w)).toBe(860); // 50×10 + 30×12
+  });
+
+  it("非力量类型 → 0", () => {
+    expect(workoutVolumeKg(workout({ type: "running", data: { distance_meters: 5000, duration_seconds: 1800, mood: 3 } }))).toBe(0);
+    expect(workoutVolumeKg(workout({ type: "swimming", data: { sets: [], total_distance_meters: 1000, total_duration_seconds: 600, mood: 3 } }))).toBe(0);
+    expect(
+      workoutVolumeKg(
+        workout({
+          type: "swimming_set",
+          data: {
+            sets: [{ sets_count: 3, count_per_set: 10, length_meters: 50, stroke: "自由泳", target_time_seconds: 150 }],
+            total_required_count: 30,
+            total_completed_count: 0,
+            completion_rate: 0,
+          },
+        }),
+      ),
+    ).toBe(0);
   });
 });

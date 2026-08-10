@@ -156,8 +156,9 @@ describe("FitStats 统计页", () => {
     expect(await screen.findByText("6 km")).toBeInTheDocument();
     expect(screen.getByText("40m 0s")).toBeInTheDocument();
     expect(screen.getByText("415 kcal")).toBeInTheDocument();
-    expect(screen.getByText("跑步")).toBeInTheDocument();
-    expect(screen.getByText("游泳")).toBeInTheDocument();
+    // 两条线非空 → 折线图例出现,与分布行文本重复,取首个即可
+    expect(screen.getAllByText("跑步")[0]).toBeInTheDocument();
+    expect(screen.getAllByText("游泳")[0]).toBeInTheDocument();
   });
 
   it("范围过滤:10 天前的记录本周不显示,切到近30天出现", async () => {
@@ -288,5 +289,85 @@ describe("FitStats 增强:自定义区间 / 环比 / 类型筛选", () => {
     fireEvent.click(screen.getByRole("tab", { name: "自定义" }));
     expect(await screen.findByText("5 km")).toBeInTheDocument();
     expect(screen.queryByText("9 km")).not.toBeInTheDocument();
+  });
+});
+
+// ===== 分项指标折线图 =====
+describe("FitStats 分项指标折线图", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("无筛选:距离卡两线(跑步+游泳),重量卡一线,双线有图例", async () => {
+    setupClient([
+      makeWorkout({ type: "running", date: daysAgo(2), data: { distance_meters: 5000, duration_seconds: 1800, mood: 3, input_unit: "km" } }),
+      makeWorkout({ type: "swimming", date: daysAgo(2), data: { sets: [], total_distance_meters: 1000, total_duration_seconds: 600, mood: 3 } }),
+      makeWorkout({ type: "strength", date: daysAgo(2), data: { exercise: "卧推", weight_kg: 60, sets: 3, reps: 10 } }),
+    ]);
+    renderStats();
+
+    expect(await screen.findByText("每日训练距离 (km)")).toBeInTheDocument();
+    expect(screen.getByText("每日训练重量 (kg)")).toBeInTheDocument();
+
+    const dist = screen.getByRole("img", { name: "每日训练距离趋势" });
+    expect(dist.querySelector('[data-testid="line-running"]')).not.toBeNull();
+    expect(dist.querySelector('[data-testid="line-swimming"]')).not.toBeNull();
+    expect(dist.querySelectorAll("polyline")).toHaveLength(2);
+    expect(dist.querySelector('[data-testid="line-running"]')!.getAttribute("points")!.split(/\s+/)).toHaveLength(7); // 本周 7 桶
+
+    const weight = screen.getByRole("img", { name: "每日训练总重量趋势" });
+    expect(weight.querySelectorAll("polyline")).toHaveLength(1);
+  });
+
+  it("筛选联动:筛跑步 → 距离卡单线、重量卡空态;筛力量 → 反之", async () => {
+    setupClient([
+      makeWorkout({ type: "running", date: daysAgo(2), data: { distance_meters: 5000, duration_seconds: 1800, mood: 3, input_unit: "km" } }),
+      makeWorkout({ type: "strength", date: daysAgo(2), data: { exercise: "卧推", weight_kg: 60, sets: 3, reps: 10 } }),
+    ]);
+    renderStats();
+
+    expect(await screen.findByText("每日训练距离 (km)")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "筛选跑步" }));
+    expect(screen.getByRole("img", { name: "每日训练距离趋势" }).querySelectorAll("polyline")).toHaveLength(1);
+    expect(screen.getByText("暂无重量数据")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "筛选跑步" })); // 还原
+    fireEvent.click(screen.getByRole("button", { name: "筛选力量" }));
+    expect(screen.getByText("暂无距离数据")).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: "每日训练总重量趋势" }).querySelectorAll("polyline")).toHaveLength(1);
+  });
+
+  it("专项组距离并入游泳线:无跑线", async () => {
+    setupClient([
+      makeWorkout({
+        type: "swimming_set",
+        date: daysAgo(2),
+        data: {
+          sets: [{ sets_count: 3, count_per_set: 10, length_meters: 50, stroke: "自由泳", target_time_seconds: 150, completed_count: 27, input_unit: "m" }],
+          total_required_count: 30,
+          total_completed_count: 27,
+          completion_rate: 90,
+          input_unit: "m",
+        },
+      }),
+    ]);
+    renderStats();
+
+    expect(await screen.findByText("每日训练距离 (km)")).toBeInTheDocument();
+    const dist = screen.getByRole("img", { name: "每日训练距离趋势" });
+    expect(dist.querySelector('[data-testid="line-swimming"]')).not.toBeNull();
+    expect(dist.querySelector('[data-testid="line-running"]')).toBeNull();
+  });
+
+  it("单类型(仅力量):距离卡空态、重量卡单线、无图例", async () => {
+    setupClient([
+      makeWorkout({ type: "strength", date: daysAgo(2), data: { exercise: "卧推", weight_kg: 60, sets: 3, reps: 10 } }),
+    ]);
+    renderStats();
+
+    expect(await screen.findByText("暂无距离数据")).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: "每日训练总重量趋势" }).querySelectorAll("polyline")).toHaveLength(1);
+    expect(screen.queryByRole("img", { name: "每日训练距离趋势" })).toBeNull();
   });
 });
