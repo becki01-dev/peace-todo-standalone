@@ -54,6 +54,16 @@ function setupClient(workouts: Workout[]) {
 /** 相对现在的日期(本地时区),保证落在过滤窗口内/外 */
 const daysAgo = (days: number) => new Date(Date.now() - days * 24 * 3600 * 1000).toISOString();
 
+/** 相对现在的本地 ymd(用于填自定义区间输入) */
+const daysAgoYmd = (days: number) => {
+  const d = new Date(Date.now() - days * 24 * 3600 * 1000);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
+
+/** 自定义区间的日期输入(Label 与 Input 无 htmlFor 关联,按文本定位所在容器;jsdom 中 date input 无 textbox role) */
+const dateInput = (label: string) =>
+  screen.getByText(label).closest("div")!.querySelector('input[type="date"]') as HTMLInputElement;
+
 let seq = 0;
 const makeWorkout = (overrides: Partial<Workout> & Pick<Workout, "type" | "data">): Workout => {
   seq += 1;
@@ -164,5 +174,119 @@ describe("FitStats 统计页", () => {
 
     fireEvent.click(screen.getByRole("tab", { name: "近30天" }));
     expect(await screen.findByText("5 km")).toBeInTheDocument();
+  });
+});
+
+// ===== 增强:自定义区间 / 环比对比 / 类型筛选 =====
+// 断言用正则(/vs 上周/ 等),因为 delta 文本是 value + label 合并在一个节点里
+describe("FitStats 增强:自定义区间 / 环比 / 类型筛选", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("自定义区间:闭区间含起止当天,改结束日期后范围收缩", async () => {
+    setupClient([
+      makeWorkout({ type: "running", date: daysAgo(2), data: { distance_meters: 5000, duration_seconds: 1800, mood: 3, input_unit: "km" } }),
+      makeWorkout({ type: "swimming", date: daysAgo(4), data: { sets: [], total_distance_meters: 1000, total_duration_seconds: 600, mood: 3 } }),
+      makeWorkout({ type: "running", date: daysAgo(10), data: { distance_meters: 7000, duration_seconds: 3600, mood: 3, input_unit: "km" } }),
+    ]);
+    renderStats();
+
+    fireEvent.click(screen.getByRole("tab", { name: "自定义" }));
+    fireEvent.change(dateInput("起始"), { target: { value: daysAgoYmd(5) } });
+    fireEvent.change(dateInput("结束"), { target: { value: daysAgoYmd(1) } });
+
+    // [今-5, 今-1] 闭区间:2天前 + 4天前在内,10天前排除 → 6 km
+    expect(await screen.findByText("6 km")).toBeInTheDocument();
+    expect(screen.getByText("40m 0s")).toBeInTheDocument();
+
+    fireEvent.change(dateInput("结束"), { target: { value: daysAgoYmd(3) } });
+    // [今-5, 今-3]:只剩 4 天前 → 1 km
+    expect(await screen.findByText("1 km")).toBeInTheDocument();
+  });
+
+  it("环比:本周 vs 上周 四指标百分比正确(含重复值计数)", async () => {
+    setupClient([
+      makeWorkout({ type: "running", date: daysAgo(2), data: { distance_meters: 5000, duration_seconds: 1800, mood: 3, input_unit: "km" } }),
+      makeWorkout({ type: "running", date: daysAgo(8), data: { distance_meters: 2000, duration_seconds: 600, mood: 3, input_unit: "km" } }),
+    ]);
+    renderStats();
+
+    // 本周 1 次 vs 上周 1 次:count 0%;距离 5000 vs 2000 → +150%;时长 1800 vs 600 → +200%;kcal 325 vs 130 → +150%
+    expect(await screen.findByText("5 km")).toBeInTheDocument();
+    expect(screen.getAllByText(/vs 上周/)).toHaveLength(4);
+    expect(screen.getAllByText(/\+150%/)).toHaveLength(2); // 距离与卡路里同为 +150%
+    expect(screen.getByText(/\+200%/)).toBeInTheDocument();
+    expect(screen.getAllByText(/0% vs 上周/).length).toBeGreaterThan(0); // 次数 1 vs 1
+  });
+
+  it("环比 0 基线:上周无数据时 delta 显示占位", async () => {
+    setupClient([
+      makeWorkout({ type: "running", date: daysAgo(2), data: { distance_meters: 5000, duration_seconds: 1800, mood: 3, input_unit: "km" } }),
+    ]);
+    renderStats();
+
+    expect(await screen.findByText("5 km")).toBeInTheDocument();
+    expect(screen.getAllByText("—")).toHaveLength(4);
+  });
+
+  it("类型筛选:点击分布行只看该类型,再点还原;分布计数不受筛选影响", async () => {
+    setupClient([
+      makeWorkout({ type: "running", date: daysAgo(2), data: { distance_meters: 5000, duration_seconds: 1800, mood: 3, input_unit: "km" } }),
+      makeWorkout({ type: "swimming", date: daysAgo(2), data: { sets: [], total_distance_meters: 1000, total_duration_seconds: 600, mood: 3 } }),
+    ]);
+    renderStats();
+
+    expect(await screen.findByText("6 km")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "筛选跑步" }));
+    expect(screen.getByRole("button", { name: "筛选跑步" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByText("5 km")).toBeInTheDocument(); // 只剩跑步
+    expect(screen.getByText("325 kcal")).toBeInTheDocument();
+    expect(screen.getAllByText("1 次")).toHaveLength(2); // 分布行计数不变(跑步+游泳)
+
+    fireEvent.click(screen.getByRole("button", { name: "筛选跑步" }));
+    expect(screen.getByRole("button", { name: "筛选跑步" })).toHaveAttribute("aria-pressed", "false");
+    expect(screen.getByText("6 km")).toBeInTheDocument(); // 还原
+  });
+
+  it("类型筛空:分布卡片常显,提示该类型暂无数据", async () => {
+    setupClient([
+      makeWorkout({ type: "running", date: daysAgo(2), data: { distance_meters: 5000, duration_seconds: 1800, mood: 3, input_unit: "km" } }),
+    ]);
+    renderStats();
+
+    expect(await screen.findByText("5 km")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "筛选游泳" }));
+    expect(screen.getByText("该类型此时段暂无数据")).toBeInTheDocument();
+    expect(screen.getByText("跑步")).toBeInTheDocument(); // 分布卡片仍显示
+    expect(screen.getByText("1 次")).toBeInTheDocument();
+  });
+
+  it("止<起:显示校验提示与空态", async () => {
+    setupClient([
+      makeWorkout({ type: "running", date: daysAgo(2), data: { distance_meters: 5000, duration_seconds: 1800, mood: 3, input_unit: "km" } }),
+    ]);
+    renderStats();
+
+    fireEvent.click(screen.getByRole("tab", { name: "自定义" }));
+    fireEvent.change(dateInput("起始"), { target: { value: daysAgoYmd(3) } });
+    fireEvent.change(dateInput("结束"), { target: { value: daysAgoYmd(5) } });
+
+    expect(await screen.findByText("开始日期需早于或等于结束日期")).toBeInTheDocument();
+    expect(screen.getByText("请调整起止日期")).toBeInTheDocument();
+  });
+
+  it("切自定义档默认显示近 7 天", async () => {
+    setupClient([
+      makeWorkout({ type: "running", date: daysAgo(2), data: { distance_meters: 5000, duration_seconds: 1800, mood: 3, input_unit: "km" } }),
+      makeWorkout({ type: "running", date: daysAgo(10), data: { distance_meters: 9000, duration_seconds: 3600, mood: 3, input_unit: "km" } }),
+    ]);
+    renderStats();
+
+    fireEvent.click(screen.getByRole("tab", { name: "自定义" }));
+    expect(await screen.findByText("5 km")).toBeInTheDocument();
+    expect(screen.queryByText("9 km")).not.toBeInTheDocument();
   });
 });

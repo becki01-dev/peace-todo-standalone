@@ -1,27 +1,50 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { Workout } from "../types";
+import { Workout, WorkoutType } from "../types";
 import { usePreferences } from "../usePreferences";
+import { formatDuration, formatNumber, metersToDisplay } from "../units";
 import {
-  workoutDistanceMeters,
-  workoutDurationSeconds,
-  estimateWorkoutKcal,
-  formatDuration,
-  formatNumber,
-  metersToDisplay,
-} from "../units";
+  rangeWindow,
+  shiftWindow,
+  shiftDays,
+  inWindowRange,
+  sumWorkouts,
+  pctChange,
+  formatPct,
+  bucketWindow,
+  ymdDaysAgo,
+} from "../stats";
+import { todayYmd } from "../dates";
 import { FitEmptyState } from "../EmptyState";
-import { Footprints, Waves, Dumbbell, Target } from "lucide-react";
+import { Footprints, Waves, Dumbbell, Target, TrendingUp, TrendingDown, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
-type Range = "week" | "month";
+type Range = "week" | "month" | "custom";
+
+const RANGE_TABS: [Range, string][] = [
+  ["week", "本周"],
+  ["month", "近30天"],
+  ["custom", "自定义"],
+];
+
+const TYPE_DEFS: { key: WorkoutType; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
+  { key: "running", label: "跑步", icon: Footprints },
+  { key: "swimming", label: "游泳", icon: Waves },
+  { key: "strength", label: "力量", icon: Dumbbell },
+  { key: "swimming_set", label: "专项组", icon: Target },
+];
 
 const FitStats = () => {
   const { user } = useAuth();
   const { prefs } = usePreferences();
   const [workouts, setWorkouts] = useState<Workout[]>([]);
   const [range, setRange] = useState<Range>("week");
+  const [customStart, setCustomStart] = useState(() => ymdDaysAgo(6)); // 切到自定义档默认近 7 天
+  const [customEnd, setCustomEnd] = useState(todayYmd);
+  const [typeFilter, setTypeFilter] = useState<WorkoutType | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -40,51 +63,66 @@ const FitStats = () => {
       });
   }, [user]);
 
-  const filtered = useMemo(() => {
-    const now = new Date();
-    const start = new Date(now);
-    start.setDate(now.getDate() - (range === "week" ? 6 : 29));
-    start.setHours(0, 0, 0, 0);
-    return workouts.filter((w) => new Date(w.date) >= start);
-  }, [workouts, range]);
+  // 窗口:[start, endExclusive) 半开区间;自定义起>止或非法 → null
+  const window = useMemo(() => rangeWindow(range, customStart, customEnd), [range, customStart, customEnd]);
+  const invalidCustom = range === "custom" && window === null;
 
-  const totals = useMemo(() => {
-    let meters = 0, seconds = 0, kcal = 0;
-    const byType = { running: 0, swimming: 0, strength: 0, swimming_set: 0 };
-    filtered.forEach((w) => {
-      byType[w.type]++;
-      meters += workoutDistanceMeters(w);
-      seconds += workoutDurationSeconds(w);
-      kcal += estimateWorkoutKcal(w);
-    });
-    return { meters, seconds, kcal, byType, count: filtered.length };
-  }, [filtered]);
+  const inWindow = useMemo(
+    () => (window ? workouts.filter((w) => inWindowRange(w, window)) : []),
+    [workouts, window],
+  );
 
-  // Bar chart: count per day
-  const days = range === "week" ? 7 : 30;
+  // 上一等长区间(环比同口径:吃类型筛选)
+  const prevWindow = useMemo(() => (window ? shiftWindow(window) : null), [window]);
+  const prevSums = useMemo(
+    () =>
+      sumWorkouts(
+        prevWindow
+          ? workouts.filter((w) => inWindowRange(w, prevWindow) && (!typeFilter || w.type === typeFilter))
+          : [],
+      ),
+    [workouts, prevWindow, typeFilter],
+  );
+
+  const rangeSums = useMemo(() => sumWorkouts(inWindow), [inWindow]); // 分布卡片:不吃类型筛选
+  const visible = useMemo(
+    () => (typeFilter ? inWindow.filter((w) => w.type === typeFilter) : inWindow),
+    [inWindow, typeFilter],
+  );
+  const totals = useMemo(() => sumWorkouts(visible), [visible]); // 四卡 + 柱状图
+
+  const deltas = useMemo(
+    () => ({
+      count: pctChange(totals.count, prevSums.count),
+      seconds: pctChange(totals.seconds, prevSums.seconds),
+      meters: pctChange(totals.meters, prevSums.meters),
+      kcal: pctChange(totals.kcal, prevSums.kcal),
+    }),
+    [totals, prevSums],
+  );
+  const deltaLabel = range === "week" ? "vs 上周" : range === "month" ? "vs 上月" : "vs 上区间";
+
+  const totalType =
+    rangeSums.byType.running + rangeSums.byType.swimming + rangeSums.byType.strength + rangeSums.byType.swimming_set || 1;
+
+  // Bar chart:桶起点来自 window(自定义区间可能不以今天结束),超过 60 根自动聚合
   const chartData = useMemo(() => {
-    const arr = Array.from({ length: days }, (_, i) => {
-      const d = new Date();
-      d.setDate(d.getDate() - (days - 1 - i));
-      d.setHours(0, 0, 0, 0);
-      return { date: d, count: 0 };
+    if (!window) return [];
+    const buckets = bucketWindow(window.start, window.endExclusive, 60);
+    visible.forEach((w) => {
+      const d = new Date(w.date);
+      const b = buckets.find((x) => d >= x.start && d < shiftDays(x.start, x.days));
+      if (b) b.count++;
     });
-    filtered.forEach((w) => {
-      const wd = new Date(w.date); wd.setHours(0, 0, 0, 0);
-      const idx = arr.findIndex((x) => x.date.getTime() === wd.getTime());
-      if (idx >= 0) arr[idx].count++;
-    });
-    return arr;
-  }, [filtered, days]);
+    return buckets;
+  }, [window, visible]);
 
   const maxCount = Math.max(1, ...chartData.map((x) => x.count));
-  const totalType =
-    totals.byType.running + totals.byType.swimming + totals.byType.strength + totals.byType.swimming_set || 1;
 
   return (
     <div className="space-y-6">
       <div className="flex gap-1 p-1 bg-fit-card rounded-lg border border-fit-border" role="tablist" aria-label="统计范围">
-        {(["week", "month"] as Range[]).map((r) => (
+        {RANGE_TABS.map(([r, label]) => (
           <button
             key={r}
             onClick={() => setRange(r)}
@@ -95,76 +133,175 @@ const FitStats = () => {
               range === r ? "bg-fit-accent text-fit-accent-foreground" : "text-fit-muted",
             )}
           >
-            {r === "week" ? "本周" : "近30天"}
+            {label}
           </button>
         ))}
       </div>
 
+      {range === "custom" && (
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <Label className="text-fit-muted text-xs mb-2 block">起始</Label>
+            <Input
+              type="date"
+              value={customStart}
+              max={customEnd}
+              onChange={(e) => setCustomStart(e.target.value)}
+              className="bg-fit-surface border-fit-border text-fit-foreground"
+            />
+          </div>
+          <div>
+            <Label className="text-fit-muted text-xs mb-2 block">结束</Label>
+            <Input
+              type="date"
+              value={customEnd}
+              min={customStart}
+              max={todayYmd()}
+              onChange={(e) => setCustomEnd(e.target.value)}
+              className="bg-fit-surface border-fit-border text-fit-foreground"
+            />
+          </div>
+        </div>
+      )}
+      {invalidCustom && <p className="text-xs text-destructive">开始日期需早于或等于结束日期</p>}
+
       {loading ? (
         <div className="h-40 rounded-xl bg-fit-card animate-pulse" />
-      ) : totals.count === 0 ? (
-        <FitEmptyState message="此时段还没有数据" />
+      ) : invalidCustom ? (
+        <FitEmptyState message="请调整起止日期" />
       ) : (
         <>
           <div className="grid grid-cols-3 gap-2">
-            <Stat label="次数" value={totals.count.toString()} />
-            <Stat label="时长" value={formatDuration(totals.seconds)} />
-            <Stat label="距离" value={`${formatNumber(metersToDisplay(totals.meters, prefs.distance_unit))} ${prefs.distance_unit}`} />
+            <Stat label="次数" value={totals.count.toString()} delta={deltas.count} deltaLabel={deltaLabel} />
+            <Stat label="时长" value={formatDuration(totals.seconds)} delta={deltas.seconds} deltaLabel={deltaLabel} />
+            <Stat
+              label="距离"
+              value={`${formatNumber(metersToDisplay(totals.meters, prefs.distance_unit))} ${prefs.distance_unit}`}
+              delta={deltas.meters}
+              deltaLabel={deltaLabel}
+            />
           </div>
-          <Stat label="预估消耗" value={`${totals.kcal} kcal`} large />
+          <Stat label="预估消耗" value={`${totals.kcal} kcal`} large delta={deltas.kcal} deltaLabel={deltaLabel} />
+
+          {inWindow.length > 0 && (
+            <div className="p-4 rounded-xl bg-fit-card border border-fit-border">
+              <h3 className="text-xs text-fit-muted uppercase tracking-wider mb-4">每日训练次数</h3>
+              <div className="flex items-end justify-between gap-1 h-32">
+                {chartData.map((d, i) => (
+                  <div key={i} className="flex-1 flex flex-col items-center gap-1">
+                    <div
+                      className="w-full bg-fit-accent rounded-sm transition-all"
+                      style={{ height: `${(d.count / maxCount) * 100}%`, minHeight: d.count ? "4px" : "0" }}
+                    />
+                    {(chartData.length <= 7 || i % 5 === 0) && (
+                      <span className="text-[9px] text-fit-muted">{d.start.getDate()}</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           <div className="p-4 rounded-xl bg-fit-card border border-fit-border">
-            <h3 className="text-xs text-fit-muted uppercase tracking-wider mb-4">每日训练次数</h3>
-            <div className="flex items-end justify-between gap-1 h-32">
-              {chartData.map((d, i) => (
-                <div key={i} className="flex-1 flex flex-col items-center gap-1">
-                  <div
-                    className="w-full bg-fit-accent rounded-sm transition-all"
-                    style={{ height: `${(d.count / maxCount) * 100}%`, minHeight: d.count ? "4px" : "0" }}
-                  />
-                  {(range === "week" || i % 5 === 0) && (
-                    <span className="text-[9px] text-fit-muted">{d.date.getDate()}</span>
-                  )}
-                </div>
+            <h3 className="text-xs text-fit-muted uppercase tracking-wider mb-4">运动类型分布</h3>
+            <div className="space-y-2">
+              {TYPE_DEFS.map((def) => (
+                <TypeRow
+                  key={def.key}
+                  def={def}
+                  count={rangeSums.byType[def.key]}
+                  total={totalType}
+                  active={typeFilter === def.key}
+                  onToggle={() => setTypeFilter(typeFilter === def.key ? null : def.key)}
+                />
               ))}
             </div>
           </div>
 
-          <div className="p-4 rounded-xl bg-fit-card border border-fit-border">
-            <h3 className="text-xs text-fit-muted uppercase tracking-wider mb-4">运动类型分布</h3>
-            <div className="space-y-3">
-              <TypeRow icon={Footprints} label="跑步" count={totals.byType.running} total={totalType} />
-              <TypeRow icon={Waves} label="游泳" count={totals.byType.swimming} total={totalType} />
-              <TypeRow icon={Dumbbell} label="力量" count={totals.byType.strength} total={totalType} />
-              <TypeRow icon={Target} label="专项组" count={totals.byType.swimming_set} total={totalType} />
-            </div>
-          </div>
+          {inWindow.length === 0 ? (
+            <FitEmptyState message="此时段还没有数据" />
+          ) : visible.length === 0 ? (
+            <FitEmptyState message="该类型此时段暂无数据" />
+          ) : null}
         </>
       )}
     </div>
   );
 };
 
-const Stat = ({ label, value, large }: { label: string; value: string; large?: boolean }) => (
+const Stat = ({
+  label,
+  value,
+  large,
+  delta,
+  deltaLabel,
+}: {
+  label: string;
+  value: string;
+  large?: boolean;
+  delta?: number | null;
+  deltaLabel?: string;
+}) => (
   <div className={cn("p-3 rounded-xl bg-fit-card border border-fit-border", large && "col-span-3")}>
     <div className="text-[10px] text-fit-muted uppercase tracking-wider">{label}</div>
-    <div className={cn("font-bold text-fit-foreground tabular-nums mt-1", large ? "text-2xl text-fit-accent" : "text-base")}>{value}</div>
+    <div className={cn("font-bold text-fit-foreground tabular-nums mt-1", large ? "text-2xl text-fit-accent" : "text-base")}>
+      {value}
+    </div>
+    {delta !== undefined && (
+      <div
+        className={cn(
+          "mt-0.5 text-[10px] flex items-center gap-0.5 tabular-nums",
+          delta === null || delta === 0 ? "text-fit-muted" : delta > 0 ? "text-green-500" : "text-red-500",
+        )}
+      >
+        {delta === null ? (
+          "—"
+        ) : (
+          <>
+            {delta > 0 && <TrendingUp className="w-3 h-3" />}
+            {delta < 0 && <TrendingDown className="w-3 h-3" />}
+            {formatPct(delta)} {deltaLabel}
+          </>
+        )}
+      </div>
+    )}
   </div>
 );
 
 const TypeRow = ({
-  icon: Icon, label, count, total,
-}: { icon: React.ComponentType<{ className?: string }>; label: string; count: number; total: number }) => {
+  def,
+  count,
+  total,
+  active,
+  onToggle,
+}: {
+  def: (typeof TYPE_DEFS)[number];
+  count: number;
+  total: number;
+  active: boolean;
+  onToggle: () => void;
+}) => {
+  const Icon = def.icon;
   const pct = (count / total) * 100;
   return (
-    <div className="flex items-center gap-3">
-      <Icon className="w-4 h-4 text-fit-muted" />
-      <span className="text-sm text-fit-foreground w-12">{label}</span>
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-pressed={active}
+      aria-label={`筛选${def.label}`}
+      className={cn(
+        "w-full flex items-center gap-3 rounded-lg border px-3 py-2 transition-smooth",
+        active ? "bg-fit-accent/10 border-fit-accent/40" : "border-transparent hover:bg-fit-surface",
+      )}
+    >
+      <Icon className={cn("w-4 h-4", active ? "text-fit-accent" : "text-fit-muted")} />
+      <span className="text-sm text-fit-foreground w-12 text-left">{def.label}</span>
       <div className="flex-1 h-2 rounded-full bg-fit-surface overflow-hidden">
         <div className="h-full bg-fit-accent transition-all" style={{ width: `${pct}%` }} />
       </div>
       <span className="text-xs text-fit-muted tabular-nums w-12 text-right">{count} 次</span>
-    </div>
+      {active && <Check className="w-3.5 h-3.5 text-fit-accent" />}
+    </button>
   );
 };
 
