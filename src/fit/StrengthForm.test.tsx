@@ -135,6 +135,7 @@ describe("StrengthForm (力量训练统一表单)", () => {
     expect(screen.getByText("第 1 组")).toBeInTheDocument();
 
     fireEvent.change(screen.getByPlaceholderText("重量"), { target: { value: "60" } });
+    fireEvent.change(screen.getByPlaceholderText("如 45"), { target: { value: "45" } });
 
     fireEvent.click(screen.getByRole("button", { name: /完成训练/ }));
 
@@ -151,6 +152,7 @@ describe("StrengthForm (力量训练统一表单)", () => {
           weight_kg: 0,
           sets: 1,
           reps: 10,
+          duration_seconds: 2700,
           exercises: [
             {
               name: "深蹲",
@@ -218,6 +220,7 @@ describe("StrengthForm (力量训练统一表单)", () => {
     expect(timeInput).not.toBeNull();
     expect(timeInput?.value).toMatch(/^\d{2}:\d{2}$/);
 
+    fireEvent.change(screen.getByPlaceholderText("如 45"), { target: { value: "45" } });
     fireEvent.click(screen.getByRole("button", { name: /完成训练/ }));
 
     await waitFor(() => expect(chain.insert).toHaveBeenCalled(), { timeout: 2000 });
@@ -228,6 +231,7 @@ describe("StrengthForm (力量训练统一表单)", () => {
         data: expect.objectContaining({
           session: true,
           exercise: "综合力量训练", // 2 个动作 → 综合
+          duration_seconds: 2700,
           exercises: expect.arrayContaining([
             expect.objectContaining({ name: "深蹲" }),
             expect.objectContaining({ name: "卧推" }),
@@ -304,6 +308,63 @@ describe("StrengthForm (力量训练统一表单)", () => {
     expect(await screen.findByText("记录不存在或无法加载")).toBeInTheDocument();
     expect(await screen.findByText("HISTORY_PLACEHOLDER")).toBeInTheDocument();
     expect(chain.update).not.toHaveBeenCalled();
+    expect(chain.insert).not.toHaveBeenCalled();
+  });
+
+  it("创建:填训练时长 → insert 载荷含 duration_seconds(分钟×60)", async () => {
+    const chain = setupClient({ data: null, error: null });
+    renderSession();
+
+    fireEvent.click(await screen.findByRole("button", { name: "深蹲" }));
+    fireEvent.change(screen.getByPlaceholderText("重量"), { target: { value: "60" } });
+    fireEvent.change(screen.getByPlaceholderText("如 45"), { target: { value: "45" } });
+    fireEvent.click(screen.getByRole("button", { name: /完成训练/ }));
+
+    await waitFor(() => expect(chain.insert).toHaveBeenCalled(), { timeout: 2000 });
+    expect(chain.insert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ duration_seconds: 2700 }),
+      }),
+    );
+  });
+
+  it("校验:创建不填训练时长 → 保存被拦截并提示", async () => {
+    const chain = setupClient({ data: null, error: null });
+    renderSession();
+
+    fireEvent.click(await screen.findByRole("button", { name: "深蹲" }));
+    fireEvent.change(screen.getByPlaceholderText("重量"), { target: { value: "60" } });
+    fireEvent.click(screen.getByRole("button", { name: /完成训练/ }));
+
+    expect(await screen.findByText("请填写训练时长")).toBeInTheDocument();
+    expect(chain.insert).not.toHaveBeenCalled();
+  });
+
+  it("校验:训练时长非法时保存被拦截并提示", async () => {
+    const chain = setupClient({ data: null, error: null });
+    renderSession();
+
+    fireEvent.click(await screen.findByRole("button", { name: "深蹲" }));
+    fireEvent.change(screen.getByPlaceholderText("重量"), { target: { value: "60" } });
+    fireEvent.change(screen.getByPlaceholderText("如 45"), { target: { value: "-10" } });
+    fireEvent.click(screen.getByRole("button", { name: /完成训练/ }));
+
+    expect(await screen.findByText("训练时长无效")).toBeInTheDocument();
+    expect(chain.insert).not.toHaveBeenCalled();
+  });
+
+  it("编辑:有时长记录时只读显示分钟数", async () => {
+    const workout = makeStrengthWorkout({
+      data: {
+        ...makeStrengthWorkout({}).data,
+        duration_seconds: 2700,
+      },
+    });
+    const chain = setupClient({ data: workout, error: null });
+    renderSession("/fit/strength/session?edit=w1");
+
+    expect(await screen.findByText("45 分钟")).toBeInTheDocument();
+    expect(screen.queryByPlaceholderText("如 45")).toBeNull(); // 只读,非输入框
     expect(chain.insert).not.toHaveBeenCalled();
   });
 });

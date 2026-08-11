@@ -106,7 +106,7 @@ export const workoutDistanceMeters = (w: Workout): number => {
   return 0;
 };
 
-/** 单次训练的总时长(秒):专项组无实际用时,按 要求时间×实际完成组数 估算 */
+/** 单次训练的总时长(秒):专项组无实际用时,按 要求时间×实际完成组数 估算;力量读表单时长,旧数据无字段计 0 */
 export const workoutDurationSeconds = (w: Workout): number => {
   if (w.type === "running") return (w.data as RunningData).duration_seconds || 0;
   if (w.type === "swimming") {
@@ -122,6 +122,7 @@ export const workoutDurationSeconds = (w: Workout): number => {
       return sum + completedSets * (s.target_time_seconds || 0);
     }, 0);
   }
+  if (w.type === "strength") return (w.data as StrengthData).duration_seconds || 0;
   return 0;
 };
 

@@ -72,6 +72,7 @@ export interface StrengthData {
   sets: number;
   reps: number;
   input_unit?: WeightUnit; // 记录输入时使用的单位
+  duration_seconds?: number; // 训练时长(秒),会话表单填写,旧数据无此字段
   session?: boolean;
   exercises?: Array<{
     name: string;

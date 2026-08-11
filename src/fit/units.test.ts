@@ -194,6 +194,15 @@ describe("workoutDistanceMeters / workoutDurationSeconds(跨格式)", () => {
     expect(workoutDistanceMeters(strength)).toBe(0);
     expect(workoutDurationSeconds(strength)).toBe(0);
   });
+
+  it("力量:有 duration_seconds 时读出,旧数据无字段计 0", () => {
+    const timed = workout({
+      type: "strength",
+      data: { exercise: "卧推", weight_kg: 60, sets: 3, reps: 10, duration_seconds: 2700 },
+    });
+    expect(workoutDurationSeconds(timed)).toBe(2700); // 45 分钟
+    expect(workoutDurationSeconds(workout({ type: "strength", data: { exercise: "引体", weight_kg: 0, bodyweight: true, sets: 3, reps: 10 } }))).toBe(0);
+  });
 });
 
 describe("estimateWorkoutKcal(跨格式)", () => {

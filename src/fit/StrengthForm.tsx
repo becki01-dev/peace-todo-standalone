@@ -119,6 +119,12 @@ export const StrengthForm = ({ mode, initialWorkout, onSaved }: StrengthFormProp
   const [workoutTime, setWorkoutTime] = useState(() =>
     mode === "edit" && initialWorkout ? localHm(initialWorkout.date) : currentTimeHm(),
   );
+  // 训练时长(分钟,字符串态):create 默认空;edit 只读显示;copy 预填原值可改
+  const [durationMin, setDurationMin] = useState(() => {
+    if (!initialWorkout) return "";
+    const seconds = (initialWorkout.data as StrengthData).duration_seconds;
+    return seconds ? String(seconds / 60) : "";
+  });
   const [notes, setNotes] = useState(() => initialWorkout?.notes ?? "");
   const [customExercise, setCustomExercise] = useState("");
   const [exercises, setExercises] = useState<SessionExercise[]>(() =>
@@ -204,6 +210,7 @@ export const StrengthForm = ({ mode, initialWorkout, onSaved }: StrengthFormProp
       input_unit?: WeightUnit;
       sets: Array<{ weight_kg: number; reps: number; bodyweight: boolean; done: boolean }>;
     }>;
+    let durationSeconds: number | undefined;
     try {
       normalized = exercises.map((exercise) => {
         if (!exercise.name.trim()) throw new Error("动作名称不能为空");
@@ -236,6 +243,16 @@ export const StrengthForm = ({ mode, initialWorkout, onSaved }: StrengthFormProp
           sets,
         };
       });
+
+      // 时长必填(创建/复制);编辑模式只读,原记录无时长时允许保持「未记录」
+      const dMin = durationMin.trim();
+      if (dMin === "") {
+        if (!editing) throw new Error("请填写训练时长");
+      } else {
+        const n = parseFloat(dMin);
+        if (Number.isNaN(n) || n < 0) throw new Error("训练时长无效");
+        durationSeconds = Math.round(n * 60);
+      }
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "训练数据无效");
       return;
@@ -259,6 +276,7 @@ export const StrengthForm = ({ mode, initialWorkout, onSaved }: StrengthFormProp
         weight_kg: 0,
         sets: totalSetCount,
         reps: Math.max(1, Math.round(totalReps / Math.max(1, totalSetCount))),
+        ...(durationSeconds !== undefined ? { duration_seconds: durationSeconds } : {}),
         exercises: normalized,
       },
       notes: notes.trim() || null,
@@ -295,6 +313,10 @@ export const StrengthForm = ({ mode, initialWorkout, onSaved }: StrengthFormProp
               <Label className="text-fit-muted text-xs mb-2 block">时间</Label>
               <div className="text-sm text-fit-foreground">{workoutTime}</div>
             </div>
+            <div>
+              <Label className="text-fit-muted text-xs mb-2 block">训练时长</Label>
+              <div className="text-sm text-fit-foreground">{durationMin ? `${durationMin} 分钟` : "未记录"}</div>
+            </div>
           </>
         ) : (
           <>
@@ -314,6 +336,19 @@ export const StrengthForm = ({ mode, initialWorkout, onSaved }: StrengthFormProp
                 type="time"
                 value={workoutTime}
                 onChange={(e) => setWorkoutTime(e.target.value)}
+                className="bg-fit-surface border-fit-border text-fit-foreground"
+              />
+            </div>
+            <div>
+              <Label className="text-fit-muted text-xs mb-2 block">训练时长(分钟)</Label>
+              <Input
+                type="number"
+                inputMode="decimal"
+                min="0"
+                step="1"
+                value={durationMin}
+                placeholder="如 45"
+                onChange={(e) => setDurationMin(e.target.value)}
                 className="bg-fit-surface border-fit-border text-fit-foreground"
               />
             </div>

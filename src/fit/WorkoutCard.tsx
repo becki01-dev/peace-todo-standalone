@@ -109,7 +109,8 @@ export const WorkoutCard = ({ workout, onDelete, onEdit, onCopy }: {
       const doneCount = d.exercises?.filter((e) => e.done).length ?? 0;
       const names = d.exercises?.slice(0, 2).map((e) => e.name).join(" · ") ?? "";
       const more = (d.exercises?.length ?? 0) > 2 ? ` +${(d.exercises?.length ?? 0) - 2}` : "";
-      secondary = `${doneCount}/${d.exercises?.length ?? 0} 动作完成 · ${d.sets} 组 · ${names}${more}`;
+      const durText = d.duration_seconds ? ` · ${formatDuration(d.duration_seconds)}` : "";
+      secondary = `${doneCount}/${d.exercises?.length ?? 0} 动作完成 · ${d.sets} 组${durText} · ${names}${more}`;
     } else {
       // 优先使用保存的输入单位，如果没有则使用旧数据默认单位（lb）
       const displayUnit = d.input_unit || LEGACY_DEFAULT_UNITS.weight;
