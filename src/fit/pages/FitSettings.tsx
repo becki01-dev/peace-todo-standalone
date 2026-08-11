@@ -15,6 +15,7 @@ import { todayYmd } from "../dates";
 import type { Task } from "@/types/task";
 import type { Workout } from "../types";
 import type { BodyWeightRecord } from "../stats";
+import type { UserExercise } from "../exerciseLib";
 
 const FitSettings = () => {
   const navigate = useNavigate();
@@ -69,13 +70,14 @@ const FitSettings = () => {
     if (!user) return;
     setExporting(true);
     try {
-      const [tasksRes, workoutsRes, prefsRes, weightsRes] = await Promise.all([
+      const [tasksRes, workoutsRes, prefsRes, weightsRes, exercisesRes] = await Promise.all([
         supabase.from("tasks").select("*").eq("user_id", user.id),
         supabase.from("workouts").select("*").eq("user_id", user.id).order("date", { ascending: true }),
         supabase.from("user_preferences").select("*").eq("user_id", user.id).maybeSingle(),
         supabase.from("body_weight_history").select("*").eq("user_id", user.id).order("date", { ascending: true }),
+        supabase.from("user_exercises").select("*").eq("user_id", user.id).order("name", { ascending: true }),
       ]);
-      if (tasksRes.error || workoutsRes.error || prefsRes.error || weightsRes.error) {
+      if (tasksRes.error || workoutsRes.error || prefsRes.error || weightsRes.error || exercisesRes.error) {
         throw new Error("读取数据失败");
       }
       downloadJson(
@@ -86,6 +88,7 @@ const FitSettings = () => {
             workouts: (workoutsRes.data ?? []) as unknown as Workout[],
             preferences: (prefsRes.data ?? null) as Record<string, unknown> | null,
             body_weight_history: (weightsRes.data ?? []) as BodyWeightRecord[],
+            user_exercises: (exercisesRes.data ?? []) as UserExercise[],
           },
           user,
           new Date().toISOString(),

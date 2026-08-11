@@ -1,13 +1,24 @@
-import { useState } from "react";
-import { Check, Plus, Trash2, X } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Check, ChevronDown, Plus, Search, Trash2, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { usePreferences } from "./usePreferences";
 import { formatNumber, kgToDisplay, weightInputToKg } from "./units";
+import {
+  BODY_PARTS,
+  BODY_PART_LABELS,
+  PRESET_DEFS,
+  exerciseDefaults,
+  frequentExerciseNames,
+  resolveBodyPart,
+  type BodyPart,
+  type UserExercise,
+} from "./exerciseLib";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { currentTimeHm, todayYmd } from "./dates";
@@ -34,19 +45,9 @@ type SessionExercise = {
   id: string;
   name: string;
   done: boolean;
+  body_part: BodyPart;
   sets: SessionSet[];
 };
-
-const PRESET_EXERCISES = [
-  "深蹲",
-  "硬拉",
-  "卧推",
-  "引体向上",
-  "俯卧撑",
-  "肩推",
-  "划船",
-  "弓步",
-];
 
 // randomUUID 仅在安全上下文(https/localhost)可用,局域网 http 访问会缺失,给个回退
 const createId = () =>
@@ -79,6 +80,7 @@ function workoutToExercises(workout: Workout | undefined, defaultUnit: WeightUni
         id: `exercise-${idx}-${Date.now()}`,
         name: ex.name,
         done: ex.done || false,
+        body_part: resolveBodyPart(ex.name, []), // 老记录无部位字段,preset 兜底(字典加载后可在部位选择里改)
         sets: (ex.sets || []).map((set) => ({
           weight: set.bodyweight ? "" : formatNumber(kgToDisplay(set.weight_kg, unit), 2),
           reps: String(set.reps),
@@ -97,6 +99,7 @@ function workoutToExercises(workout: Workout | undefined, defaultUnit: WeightUni
       id: `exercise-legacy-${Date.now()}`,
       name: data.exercise || "未知动作",
       done: false,
+      body_part: resolveBodyPart(data.exercise || "", []),
       sets: [
         {
           weight: data.bodyweight ? "" : formatNumber(kgToDisplay(data.weight_kg || 0, unit), 2),
@@ -131,23 +134,97 @@ export const StrengthForm = ({ mode, initialWorkout, onSaved }: StrengthFormProp
     initialWorkout ? workoutToExercises(initialWorkout, prefs.weight_unit) : [],
   );
   const [saving, setSaving] = useState(false);
+  // 动作字典与历史常用动作(表单加载时拉取,失败静默:预设兜底)
+  const [dict, setDict] = useState<UserExercise[]>([]);
+  const [frequent, setFrequent] = useState<string[]>([]);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [menuSearch, setMenuSearch] = useState("");
+
+  useEffect(() => {
+    if (!user) return;
+    Promise.all([
+      supabase
+        .from("user_exercises")
+        .select("name, body_part, bodyweight_default, default_reps")
+        .eq("user_id", user.id),
+      supabase
+        .from("workouts")
+        .select("type, data")
+        .eq("user_id", user.id)
+        .eq("type", "strength")
+        .order("date", { ascending: false })
+        .limit(30),
+    ])
+      .then(([exRes, wRes]) => {
+        setDict((exRes.data ?? []) as UserExercise[]);
+        setFrequent(frequentExerciseNames((wRes.data ?? []) as Workout[], 8));
+      })
+      .catch(() => {});
+  }, [user]);
 
   const totalSets = exercises.reduce((sum, e) => sum + e.sets.length, 0);
   const editing = mode === "edit";
 
+  // 常用 Top 8:历史频率优先,不足用预设补足
+  const quickNames = useMemo(() => {
+    const names = [...frequent];
+    for (const p of PRESET_DEFS) {
+      if (names.length >= 8) break;
+      if (!names.includes(p.name)) names.push(p.name);
+    }
+    return names;
+  }, [frequent]);
+
+  // 全部动作(下拉菜单):字典 + 预设去重,常用在前,其余按中文排序
+  const allExerciseDefs = useMemo(() => {
+    const map = new Map<string, UserExercise>();
+    dict.forEach((e) => map.set(e.name, e));
+    PRESET_DEFS.forEach((p) => {
+      if (!map.has(p.name)) {
+        map.set(p.name, {
+          name: p.name,
+          body_part: p.body_part,
+          bodyweight_default: p.bodyweight,
+          default_reps: p.default_reps,
+        });
+      }
+    });
+    const freqIndex = new Map(frequent.map((n, i) => [n, i]));
+    return [...map.values()].sort(
+      (a, b) => (freqIndex.get(a.name) ?? 99) - (freqIndex.get(b.name) ?? 99) || a.name.localeCompare(b.name, "zh"),
+    );
+  }, [dict, frequent]);
+
+  const menuFiltered = useMemo(() => {
+    const q = menuSearch.trim();
+    if (!q) return allExerciseDefs;
+    return allExerciseDefs.filter((e) => e.name.includes(q));
+  }, [allExerciseDefs, menuSearch]);
+
   const addExercise = (name: string) => {
     const trimmed = name.trim();
     if (!trimmed) return;
+    const defs = exerciseDefaults(trimmed, dict);
     setExercises((prev) => [
       ...prev,
       {
         id: createId(),
         name: trimmed,
         done: false,
-        sets: [{ weight: "", reps: "10", bodyweight: false, done: false, weight_unit: prefs.weight_unit }],
+        body_part: resolveBodyPart(trimmed, dict),
+        sets: [
+          {
+            weight: "",
+            reps: defs.default_reps ? String(defs.default_reps) : "10",
+            bodyweight: defs.bodyweight,
+            done: false,
+            weight_unit: prefs.weight_unit,
+          },
+        ],
       },
     ]);
     setCustomExercise("");
+    setMenuSearch("");
   };
 
   const removeExercise = (id: string) => {
@@ -207,6 +284,7 @@ export const StrengthForm = ({ mode, initialWorkout, onSaved }: StrengthFormProp
     let normalized: Array<{
       name: string;
       done: boolean;
+      body_part: BodyPart;
       input_unit?: WeightUnit;
       sets: Array<{ weight_kg: number; reps: number; bodyweight: boolean; done: boolean }>;
     }>;
@@ -239,6 +317,7 @@ export const StrengthForm = ({ mode, initialWorkout, onSaved }: StrengthFormProp
         return {
           name: exercise.name.trim(),
           done: exercise.done,
+          body_part: exercise.body_part,
           input_unit: actionUnit,
           sets,
         };
@@ -294,6 +373,22 @@ export const StrengthForm = ({ mode, initialWorkout, onSaved }: StrengthFormProp
       toast.error("保存训练失败");
       return;
     }
+
+    // 登记动作字典(非关键操作,不阻塞保存成功反馈;失败静默,统计有 PRESET_DEFS 兜底)
+    const dictRows = normalized.map((ex) => ({
+      user_id: user.id,
+      name: ex.name,
+      body_part: ex.body_part,
+      bodyweight_default: ex.sets[0]?.bodyweight ?? false,
+      default_reps: ex.sets[0]?.reps ?? null,
+    }));
+    supabase
+      .from("user_exercises")
+      .upsert(dictRows, { onConflict: "user_id,name" })
+      .then(({ error }) => {
+        if (error) console.warn("user_exercises upsert failed:", error);
+      })
+      .catch(() => {});
 
     toast.success(editing ? "记录已更新" : "本次训练已完成");
     onSaved();
@@ -357,9 +452,9 @@ export const StrengthForm = ({ mode, initialWorkout, onSaved }: StrengthFormProp
       </div>
 
       <div className="p-4 rounded-xl bg-fit-card border border-fit-border space-y-3">
-        <Label className="text-fit-muted text-xs block">添加动作</Label>
+        <Label className="text-fit-muted text-xs block">最近常做</Label>
         <div className="flex flex-wrap gap-2">
-          {PRESET_EXERCISES.map((name) => (
+          {quickNames.map((name) => (
             <button
               key={name}
               type="button"
@@ -369,6 +464,46 @@ export const StrengthForm = ({ mode, initialWorkout, onSaved }: StrengthFormProp
               {name}
             </button>
           ))}
+          <Popover open={menuOpen} onOpenChange={setMenuOpen}>
+            <PopoverTrigger asChild>
+              <button
+                type="button"
+                className="px-3 py-1.5 rounded-md bg-fit-surface border border-fit-border text-xs font-semibold text-fit-muted hover:text-fit-foreground transition-smooth flex items-center gap-1"
+              >
+                <ChevronDown className="w-3.5 h-3.5" />
+                更多动作
+              </button>
+            </PopoverTrigger>
+            <PopoverContent className="w-72 p-2 bg-fit-card border-fit-border text-fit-foreground" align="start">
+              <div className="relative mb-2">
+                <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-fit-muted" />
+                <Input
+                  value={menuSearch}
+                  onChange={(e) => setMenuSearch(e.target.value)}
+                  placeholder="搜索动作"
+                  className="bg-fit-surface border-fit-border text-fit-foreground pl-8 h-9"
+                />
+              </div>
+              <div className="max-h-64 overflow-y-auto space-y-0.5">
+                {menuFiltered.length === 0 && <p className="text-xs text-fit-muted px-2 py-1">无匹配动作</p>}
+                {menuFiltered.map((def) => (
+                  <button
+                    key={def.name}
+                    type="button"
+                    onClick={() => {
+                      addExercise(def.name);
+                      setMenuOpen(false);
+                    }}
+                    className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-left text-sm text-fit-foreground hover:bg-fit-surface transition-smooth"
+                  >
+                    <span className="flex-1 truncate">{def.name}</span>
+                    {def.bodyweight_default && <span className="text-[10px] font-bold text-fit-accent shrink-0">BW</span>}
+                    <span className="text-[10px] text-fit-muted shrink-0">{BODY_PART_LABELS[def.body_part]}</span>
+                  </button>
+                ))}
+              </div>
+            </PopoverContent>
+          </Popover>
         </div>
         <div className="flex gap-2">
           <Input
@@ -439,6 +574,22 @@ export const StrengthForm = ({ mode, initialWorkout, onSaved }: StrengthFormProp
               >
                 <Trash2 className="w-4 h-4" />
               </button>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <select
+                value={exercise.body_part}
+                onChange={(e) => patchExercise(exercise.id, (ex) => ({ ...ex, body_part: e.target.value as BodyPart }))}
+                aria-label="锻炼部位"
+                className="bg-fit-surface border border-fit-border text-fit-foreground text-xs rounded-md px-2 py-1.5 focus:outline-none focus:border-fit-accent"
+              >
+                {BODY_PARTS.map((p) => (
+                  <option key={p} value={p}>
+                    {BODY_PART_LABELS[p]}
+                  </option>
+                ))}
+              </select>
+              <span className="text-[10px] text-fit-muted">部位(统计用)</span>
             </div>
 
             <div className="space-y-2">

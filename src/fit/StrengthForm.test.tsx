@@ -38,9 +38,11 @@ function buildChain(resolveValue: unknown) {
   p.select = vi.fn().mockReturnValue(p);
   p.eq = vi.fn().mockReturnValue(p);
   p.order = vi.fn().mockReturnValue(p);
+  p.limit = vi.fn().mockReturnValue(p);
   p.update = vi.fn().mockReturnValue(p);
   p.delete = vi.fn().mockReturnValue(p);
   p.insert = vi.fn().mockResolvedValue({ error: null });
+  p.upsert = vi.fn().mockResolvedValue({ error: null });
   p.maybeSingle = vi.fn().mockReturnValue(p);
   p.single = vi.fn().mockReturnValue(p);
   return p;
@@ -50,16 +52,22 @@ function buildChain(resolveValue: unknown) {
  * workouts 查询返回测试数据;user_preferences 查询返回 null(走默认单位 lb/yd/mi),
  * 避免同一链同时被两张表共用导致 prefs 被污染。
  */
-function setupClient(workoutsResult: unknown) {
+/** workouts 返回测试数据;user_preferences 返回 null;user_exercises 返回 exChain(字典/登记断言用) */
+function setupClient(workoutsResult: unknown, exResult = { data: [], error: null }) {
   const chain = buildChain(workoutsResult);
+  const exChain = buildChain(exResult);
   (
     supabase.from as unknown as {
       mockImplementation: (fn: (table: string) => unknown) => void;
     }
   ).mockImplementation((table: string) =>
-    table === "user_preferences" ? buildChain({ data: null, error: null }) : chain,
+    table === "user_preferences"
+      ? buildChain({ data: null, error: null })
+      : table === "user_exercises"
+        ? exChain
+        : chain,
   );
-  return chain;
+  return Object.assign(chain, { exChain });
 }
 
 const makeStrengthWorkout = (overrides: Partial<Workout>): Workout => ({
@@ -157,6 +165,7 @@ describe("StrengthForm (力量训练统一表单)", () => {
             {
               name: "深蹲",
               done: false,
+              body_part: "legs", // 预设部位
               input_unit: "lb", // 默认偏好单位
               sets: [{ weight_kg: weightInputToKg(60, "lb"), reps: 10, bodyweight: false, done: false }],
             },
@@ -292,6 +301,7 @@ describe("StrengthForm (力量训练统一表单)", () => {
             {
               name: "卧推",
               done: false,
+              body_part: "chest", // 预设部位
               input_unit: "kg",
               sets: [{ weight_kg: 60, reps: 8, bodyweight: false, done: false }],
             },
@@ -366,5 +376,71 @@ describe("StrengthForm (力量训练统一表单)", () => {
     expect(await screen.findByText("45 分钟")).toBeInTheDocument();
     expect(screen.queryByPlaceholderText("如 45")).toBeNull(); // 只读,非输入框
     expect(chain.insert).not.toHaveBeenCalled();
+  });
+
+  it("引体向上快捷添加 → 组默认 BW 与次数 10,无需再点 BW", async () => {
+    setupClient({ data: null, error: null });
+    renderSession();
+
+    fireEvent.click(await screen.findByRole("button", { name: "引体向上" }));
+
+    const weightInput = screen.getByPlaceholderText("重量") as HTMLInputElement;
+    expect(weightInput).toBeDisabled();
+    expect(weightInput.value).toBe("BW");
+    expect((screen.getByPlaceholderText("次数") as HTMLInputElement).value).toBe("10");
+  });
+
+  it("常用动作来自历史频率(非预设动作也出现)", async () => {
+    setupClient({
+      data: [
+        makeStrengthWorkout({
+          data: {
+            session: true,
+            exercise: "",
+            weight_kg: 0,
+            sets: 1,
+            reps: 10,
+            exercises: [{ name: "深蹲拉雪橇", done: false, sets: [] }],
+          },
+        }),
+      ],
+      error: null,
+    });
+    renderSession();
+
+    expect(await screen.findByRole("button", { name: "深蹲拉雪橇" })).toBeInTheDocument();
+  });
+
+  it("更多动作下拉:搜索「弯举」并添加", async () => {
+    setupClient({ data: null, error: null });
+    renderSession();
+
+    fireEvent.click(await screen.findByRole("button", { name: /更多动作/ }));
+    fireEvent.change(screen.getByPlaceholderText("搜索动作"), { target: { value: "弯举" } });
+    fireEvent.click(screen.getByRole("button", { name: /二头弯举/ }));
+
+    expect(screen.getByDisplayValue("二头弯举")).toBeInTheDocument();
+  });
+
+  it("保存训练 → 动作登记进字典(upsert 带部位与默认设置)", async () => {
+    const chain = setupClient({ data: null, error: null });
+    renderSession();
+
+    fireEvent.click(await screen.findByRole("button", { name: "引体向上" }));
+    fireEvent.change(screen.getByPlaceholderText("如 45"), { target: { value: "30" } });
+    fireEvent.click(screen.getByRole("button", { name: /完成训练/ }));
+
+    await waitFor(() => expect(chain.exChain.upsert).toHaveBeenCalled(), { timeout: 2000 });
+    const upsert = chain.exChain.upsert as unknown as ReturnType<typeof vi.fn>;
+    const rows = upsert.mock.calls[0][0] as Array<{
+      name: string;
+      body_part: string;
+      bodyweight_default: boolean;
+      default_reps: number;
+    }>;
+    expect(rows).toEqual([
+      expect.objectContaining({ name: "引体向上", body_part: "back", bodyweight_default: true, default_reps: 10 }),
+    ]);
+    expect(upsert.mock.calls[0][1]).toEqual({ onConflict: "user_id,name" });
   });
 });

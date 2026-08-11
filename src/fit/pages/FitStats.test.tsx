@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import FitStats from "./FitStats";
 import type { Workout } from "../types";
 import type { BodyWeightRecord } from "../stats";
+import type { UserExercise } from "../exerciseLib";
 
 const { TEST_USER } = vi.hoisted(() => ({
   TEST_USER: { id: "user-1", email: "tester@example.com" },
@@ -40,8 +41,13 @@ function buildChain(resolveValue: unknown) {
   return p;
 }
 
-/** user_preferences 返回 km/kg/m(可覆盖体重);body_weight_history 返回给定记录;workouts 返回给定列表 */
-function setupClient(workouts: Workout[], prefsOverrides: Record<string, unknown> = {}, weightHistory: BodyWeightRecord[] = []) {
+/** user_preferences 返回 km/kg/m(可覆盖体重);body_weight_history 返回给定记录;user_exercises 返回字典;workouts 返回给定列表 */
+function setupClient(
+  workouts: Workout[],
+  prefsOverrides: Record<string, unknown> = {},
+  weightHistory: BodyWeightRecord[] = [],
+  exerciseDict: UserExercise[] = [],
+) {
   (
     supabase.from as unknown as {
       mockImplementation: (fn: (table: string) => unknown) => void;
@@ -54,7 +60,9 @@ function setupClient(workouts: Workout[], prefsOverrides: Record<string, unknown
         })
       : table === "body_weight_history"
         ? buildChain({ data: weightHistory, error: null })
-        : buildChain({ data: workouts, error: null }),
+        : table === "user_exercises"
+          ? buildChain({ data: exerciseDict, error: null })
+          : buildChain({ data: workouts, error: null }),
   );
 }
 
@@ -466,5 +474,106 @@ describe("FitStats 分项指标折线图", () => {
 
     expect(await screen.findByRole("img", { name: "每日训练总重量趋势" })).toBeInTheDocument();
     expect(screen.queryByText(/部分自重训练未计入总重量/)).toBeNull();
+  });
+
+  it("部位分布卡:按动作聚合组数/次数/重量,预设兜底部位", async () => {
+    setupClient([
+      makeWorkout({
+        type: "strength",
+        date: daysAgo(2),
+        data: {
+          session: true,
+          exercise: "",
+          weight_kg: 0,
+          sets: 2,
+          reps: 10,
+          exercises: [
+            {
+              name: "卧推",
+              done: true,
+              sets: [
+                { weight_kg: 60, reps: 10, bodyweight: false, done: true },
+                { weight_kg: 60, reps: 8, bodyweight: false, done: true },
+              ],
+            },
+            { name: "引体向上", done: true, sets: [{ weight_kg: 0, reps: 10, bodyweight: true, done: true }] },
+          ],
+        },
+      }),
+    ]);
+    renderStats();
+
+    expect(await screen.findByText("部位分布")).toBeInTheDocument();
+    expect(screen.getByText(/2 组 · 18 次 · 1080 kg/)).toBeInTheDocument(); // 胸部:卧推 60×10+60×8
+    expect(screen.getByText(/1 组 · 10 次 · 0 kg/)).toBeInTheDocument(); // 背部:引体 BW,无体重 → 0kg
+  });
+
+  it("部位筛选:筛「胸部」→ 行高亮,其他部位训练被过滤", async () => {
+    setupClient([
+      makeWorkout({
+        type: "strength",
+        date: daysAgo(2),
+        data: {
+          session: true,
+          exercise: "",
+          weight_kg: 0,
+          sets: 1,
+          reps: 10,
+          exercises: [{ name: "卧推", done: true, sets: [{ weight_kg: 60, reps: 10, bodyweight: false, done: true }] }],
+        },
+      }),
+      makeWorkout({
+        type: "strength",
+        date: daysAgo(2),
+        data: {
+          session: true,
+          exercise: "",
+          weight_kg: 0,
+          sets: 1,
+          reps: 10,
+          exercises: [{ name: "引体向上", done: true, sets: [{ weight_kg: 0, reps: 10, bodyweight: true, done: true }] }],
+        },
+      }),
+    ]);
+    renderStats();
+
+    const chestBtn = await screen.findByRole("button", { name: "筛选胸部" });
+    fireEvent.click(chestBtn);
+
+    expect(chestBtn).toHaveAttribute("aria-pressed", "true");
+    // 引体训练被过滤后,剩余卧推 600kg 仍有曲线
+    expect(screen.getByRole("img", { name: "每日训练总重量趋势" })).toBeInTheDocument();
+    fireEvent.click(chestBtn);
+    expect(chestBtn).toHaveAttribute("aria-pressed", "false");
+  });
+
+  it("未登记动作归入「全身」", async () => {
+    setupClient([
+      makeWorkout({
+        type: "strength",
+        date: daysAgo(2),
+        data: {
+          session: true,
+          exercise: "",
+          weight_kg: 0,
+          sets: 1,
+          reps: 10,
+          exercises: [{ name: "自定义动作X", done: true, sets: [{ weight_kg: 30, reps: 10, bodyweight: false, done: true }] }],
+        },
+      }),
+    ]);
+    renderStats();
+
+    expect(await screen.findByText("全身")).toBeInTheDocument();
+    expect(screen.getByText(/1 组 · 10 次 · 300 kg/)).toBeInTheDocument();
+  });
+
+  it("窗口内无力量训练 → 部位卡空态", async () => {
+    setupClient([
+      makeWorkout({ type: "running", date: daysAgo(2), data: { distance_meters: 5000, duration_seconds: 1800, mood: 3 } }),
+    ]);
+    renderStats();
+
+    expect(await screen.findByText("暂无力量训练数据")).toBeInTheDocument();
   });
 });

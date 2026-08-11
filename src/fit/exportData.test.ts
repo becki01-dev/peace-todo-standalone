@@ -34,13 +34,14 @@ afterEach(() => {
 });
 
 describe("buildExportPayload", () => {
-  it("组装完整导出结构(任务/训练/偏好/体重历史/用户信息)", () => {
+  it("组装完整导出结构(任务/训练/偏好/体重历史/动作字典/用户信息)", () => {
     const payload = buildExportPayload(
       {
         tasks: [task],
         workouts: [workout],
         preferences: { weight_unit: "lb" },
         body_weight_history: [{ date: "2026-08-08", weight_kg: 70 }],
+        user_exercises: [{ name: "卧推", body_part: "chest", bodyweight_default: false, default_reps: 10 }],
       },
       user,
       "2026-08-08T00:00:00.000Z",
@@ -54,12 +55,13 @@ describe("buildExportPayload", () => {
       tasks: [task],
       workouts: [workout],
       body_weight_history: [{ date: "2026-08-08", weight_kg: 70 }],
+      user_exercises: [{ name: "卧推", body_part: "chest", bodyweight_default: false, default_reps: 10 }],
     });
   });
 
   it("空数据与无偏好时输出空数组与 null", () => {
     const payload = buildExportPayload(
-      { tasks: [], workouts: [], preferences: null, body_weight_history: [] },
+      { tasks: [], workouts: [], preferences: null, body_weight_history: [], user_exercises: [] },
       user,
       "2026-08-08T00:00:00.000Z",
     );
@@ -68,6 +70,7 @@ describe("buildExportPayload", () => {
     expect(payload.tasks).toEqual([]);
     expect(payload.workouts).toEqual([]);
     expect(payload.body_weight_history).toEqual([]);
+    expect(payload.user_exercises).toEqual([]);
   });
 });
 

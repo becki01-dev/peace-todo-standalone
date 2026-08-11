@@ -166,6 +166,36 @@ export const workoutVolumeKg = (w: Workout, bodyWeightKg?: number | null): numbe
   return d.bodyweight ? bw * (d.sets || 0) * (d.reps || 0) : (d.weight_kg || 0) * (d.sets || 0) * (d.reps || 0);
 };
 
+export interface ExerciseAgg {
+  name: string;
+  setsCount: number;
+  reps: number;
+  kg: number;
+}
+
+/** 按动作拆解力量训练:组数/次数/重量(kg);bodyweight 组按体重×次数(未传体重计 0);单动作 legacy 折算为单个动作 */
+export const exerciseAggs = (w: Workout, bodyWeightKg?: number | null): ExerciseAgg[] => {
+  if (w.type !== "strength") return [];
+  const d = w.data as StrengthData;
+  const bw = bodyWeightKg && bodyWeightKg > 0 ? bodyWeightKg : 0;
+  if (d.session && Array.isArray(d.exercises) && d.exercises.length > 0) {
+    return d.exercises.map((ex) => {
+      const sets = ex.sets ?? [];
+      const setsCount = sets.length;
+      const reps = sets.reduce((s, st) => s + (st.reps || 0), 0);
+      const kg = sets.reduce(
+        (s, st) => s + (st.bodyweight ? bw * (st.reps || 0) : (st.weight_kg || 0) * (st.reps || 0)),
+        0,
+      );
+      return { name: ex.name, setsCount, reps, kg };
+    });
+  }
+  // 单动作 legacy:折算为一个动作(组数=sets,次数=sets×reps)
+  const reps = (d.sets || 0) * (d.reps || 0);
+  const kg = d.bodyweight ? bw * reps : (d.weight_kg || 0) * (d.sets || 0) * (d.reps || 0);
+  return [{ name: d.exercise, setsCount: d.sets || 0, reps, kg }];
+};
+
 /** 是否含自重(bodyweight)组:单动作 bodyweight 或会话任一组 bodyweight(FitStats 未填体重提示条判断用) */
 export const hasBodyweightGroups = (w: Workout): boolean => {
   if (w.type !== "strength") return false;

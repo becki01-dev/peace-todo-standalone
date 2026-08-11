@@ -12,7 +12,15 @@ import {
   workoutDistanceMeters,
   workoutVolumeKg,
   hasBodyweightGroups,
+  exerciseAggs,
 } from "../units";
+import {
+  BODY_PARTS,
+  BODY_PART_LABELS,
+  resolveBodyPart,
+  type BodyPart,
+  type UserExercise,
+} from "../exerciseLib";
 import {
   rangeWindow,
   shiftWindow,
@@ -64,8 +72,10 @@ const FitStats = () => {
   const [customStart, setCustomStart] = useState(() => ymdDaysAgo(6)); // 切到自定义档默认近 7 天
   const [customEnd, setCustomEnd] = useState(todayYmd);
   const [typeFilter, setTypeFilter] = useState<WorkoutType | null>(null);
+  const [partFilter, setPartFilter] = useState<BodyPart | null>(null);
   const [loading, setLoading] = useState(true);
   const [weightHistory, setWeightHistory] = useState<BodyWeightRecord[]>([]);
+  const [exerciseDict, setExerciseDict] = useState<UserExercise[]>([]);
 
   useEffect(() => {
     if (!user) return;
@@ -96,6 +106,19 @@ const FitStats = () => {
       .catch(() => {});
   }, [user]);
 
+  // 动作字典:部位归属(未登记动作由 PRESET_DEFS 兜底 → 全身)
+  useEffect(() => {
+    if (!user) return;
+    supabase
+      .from("user_exercises")
+      .select("name, body_part")
+      .eq("user_id", user.id)
+      .then(({ data }) => {
+        setExerciseDict((data ?? []) as UserExercise[]);
+      })
+      .catch(() => {});
+  }, [user]);
+
   const weightAt = useMemo(() => buildWeightAt(weightHistory), [weightHistory]);
 
   // 窗口:[start, endExclusive) 半开区间;自定义起>止或非法 → null
@@ -120,11 +143,42 @@ const FitStats = () => {
   );
 
   const rangeSums = useMemo(() => sumWorkouts(inWindow), [inWindow]); // 分布卡片:不吃类型筛选
-  const visible = useMemo(
-    () => (typeFilter ? inWindow.filter((w) => w.type === typeFilter) : inWindow),
-    [inWindow, typeFilter],
-  );
+  // 部位筛选:保留含所选部位的 strength 训练(训练级过滤,整条计入四卡/折线)
+  const partVisible = useMemo(() => {
+    if (!partFilter) return null;
+    return inWindow.filter(
+      (w) =>
+        w.type === "strength" &&
+        exerciseAggs(w, weightAt(new Date(w.date))).some((ex) => resolveBodyPart(ex.name, exerciseDict) === partFilter),
+    );
+  }, [inWindow, partFilter, exerciseDict, weightAt]);
+  const visible = useMemo(() => {
+    let v = typeFilter ? inWindow.filter((w) => w.type === typeFilter) : inWindow;
+    if (partVisible) v = v.filter((w) => partVisible.includes(w));
+    return v;
+  }, [inWindow, typeFilter, partVisible]);
   const totals = useMemo(() => sumWorkouts(visible), [visible]); // 四卡 + 柱状图
+
+  // 部位分布:窗口内力量训练的 组数/次数/重量 按部位聚合(不吃类型筛选,部位行自身可筛)
+  const partTotals = useMemo(() => {
+    const acc = new Map<BodyPart, { sets: number; reps: number; kg: number }>();
+    BODY_PARTS.forEach((p) => acc.set(p, { sets: 0, reps: 0, kg: 0 }));
+    inWindow.forEach((w) => {
+      if (w.type !== "strength") return;
+      exerciseAggs(w, weightAt(new Date(w.date))).forEach((ex) => {
+        const t = acc.get(resolveBodyPart(ex.name, exerciseDict))!;
+        t.sets += ex.setsCount;
+        t.reps += ex.reps;
+        t.kg += ex.kg;
+      });
+    });
+    return acc;
+  }, [inWindow, exerciseDict, weightAt]);
+  const hasStrength = useMemo(() => inWindow.some((w) => w.type === "strength"), [inWindow]);
+  const partGrandSets = useMemo(
+    () => [...partTotals.values()].reduce((s, t) => s + t.sets, 0) || 1,
+    [partTotals],
+  );
 
   const deltas = useMemo(
     () => ({
@@ -306,6 +360,31 @@ const FitStats = () => {
             </div>
           </div>
 
+          <div className="p-4 rounded-xl bg-fit-card border border-fit-border">
+            <h3 className="text-xs text-fit-muted uppercase tracking-wider mb-4">部位分布</h3>
+            {hasStrength ? (
+              <div className="space-y-2">
+                {BODY_PARTS.map((p) => {
+                  const t = partTotals.get(p)!;
+                  if (t.sets === 0 && t.reps === 0 && t.kg === 0 && partFilter !== p) return null; // 全 0 行隐藏(筛选中的除外)
+                  return (
+                    <PartRow
+                      key={p}
+                      part={p}
+                      totals={t}
+                      grandSets={partGrandSets}
+                      active={partFilter === p}
+                      onToggle={() => setPartFilter(partFilter === p ? null : p)}
+                      weightUnit={prefs.weight_unit}
+                    />
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="h-20 flex items-center justify-center text-xs text-fit-muted">暂无力量训练数据</div>
+            )}
+          </div>
+
           {inWindow.length === 0 ? (
             <FitEmptyState message="此时段还没有数据" />
           ) : visible.length === 0 ? (
@@ -355,6 +434,45 @@ const Stat = ({
     )}
   </div>
 );
+
+const PartRow = ({
+  part,
+  totals,
+  grandSets,
+  active,
+  onToggle,
+  weightUnit,
+}: {
+  part: BodyPart;
+  totals: { sets: number; reps: number; kg: number };
+  grandSets: number;
+  active: boolean;
+  onToggle: () => void;
+  weightUnit: string;
+}) => {
+  const pct = (totals.sets / grandSets) * 100;
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-pressed={active}
+      aria-label={`筛选${BODY_PART_LABELS[part]}`}
+      className={cn(
+        "w-full flex items-center gap-3 rounded-lg border px-3 py-2 transition-smooth",
+        active ? "bg-fit-accent/10 border-fit-accent/40" : "border-transparent hover:bg-fit-surface",
+      )}
+    >
+      <span className="text-sm text-fit-foreground w-14 text-left">{BODY_PART_LABELS[part]}</span>
+      <div className="flex-1 h-2 rounded-full bg-fit-surface overflow-hidden">
+        <div className="h-full bg-fit-accent transition-all" style={{ width: `${pct}%` }} />
+      </div>
+      <span className="text-xs text-fit-muted tabular-nums text-right shrink-0">
+        {totals.sets} 组 · {totals.reps} 次 · {formatNumber(kgToDisplay(totals.kg, weightUnit), 0)} {weightUnit}
+      </span>
+      {active && <Check className="w-3.5 h-3.5 text-fit-accent" />}
+    </button>
+  );
+};
 
 const TypeRow = ({
   def,
