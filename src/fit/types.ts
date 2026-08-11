@@ -9,6 +9,7 @@ export interface UserPreferences {
   distance_unit: DistanceUnit;
   weight_unit: WeightUnit;
   pool_unit: PoolUnit;
+  body_weight_kg?: number | null; // 自身体重(kg),用于自重训练计入总重量
 }
 
 // All numbers stored in metric: meters, seconds, kilograms

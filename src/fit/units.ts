@@ -146,20 +146,31 @@ export const estimateWorkoutKcal = (w: Workout): number => {
   return estimateKcal("strength", d);
 };
 
-/** 单次训练的总重量(kg):力量 单动作 weight×sets×reps;会话按 per-set 累加;bodyweight 不计;非力量 0。
+/** 单次训练的总重量(kg):力量 单动作 weight×sets×reps;会话按 per-set 累加;bodyweight 组按 体重×次数 计入(未传体重则计 0);非力量 0。
  * 不按 done 过滤——表单里组默认 done:false(计划态),done 只是会话完成度 UI 状态,不是训练量标记。 */
-export const workoutVolumeKg = (w: Workout): number => {
+export const workoutVolumeKg = (w: Workout, bodyWeightKg?: number | null): number => {
+  const bw = bodyWeightKg && bodyWeightKg > 0 ? bodyWeightKg : 0;
   if (w.type !== "strength") return 0;
   const d = w.data as StrengthData;
   if (d.session && Array.isArray(d.exercises) && d.exercises.length > 0) {
-    // 会话:per-set 累加;bodyweight 组 weight_kg=0 自然归零(guard 属保险丝)
+    // 会话:per-set 累加;bodyweight 组 weight_kg=0,按 体重×次数 注入(bw=0 时自然归零)
     return d.exercises.reduce((sum, e) => {
       return sum + (e.sets ?? []).reduce((s, st) => {
-        if (st.bodyweight) return s;
+        if (st.bodyweight) return s + bw * (st.reps || 0);
         return s + (st.weight_kg || 0) * (st.reps || 0);
       }, 0);
     }, 0);
   }
   // 单动作:bodyweight 显式 guard(老数据可能 weight_kg 非零)
-  return d.bodyweight ? 0 : (d.weight_kg || 0) * (d.sets || 0) * (d.reps || 0);
+  return d.bodyweight ? bw * (d.sets || 0) * (d.reps || 0) : (d.weight_kg || 0) * (d.sets || 0) * (d.reps || 0);
+};
+
+/** 是否含自重(bodyweight)组:单动作 bodyweight 或会话任一组 bodyweight(FitStats 未填体重提示条判断用) */
+export const hasBodyweightGroups = (w: Workout): boolean => {
+  if (w.type !== "strength") return false;
+  const d = w.data as StrengthData;
+  if (d.session && Array.isArray(d.exercises)) {
+    return d.exercises.some((e) => (e.sets ?? []).some((st) => st.bodyweight));
+  }
+  return !!d.bodyweight;
 };

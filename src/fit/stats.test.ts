@@ -15,7 +15,7 @@ import {
   startOfDay,
   shiftDays,
 } from "./stats";
-import { workoutDistanceMeters, workoutVolumeKg } from "./units";
+import { workoutDistanceMeters, workoutVolumeKg, hasBodyweightGroups } from "./units";
 import type { Workout } from "./types";
 
 // 固定"今天" = 2026-08-10(本地)
@@ -233,6 +233,12 @@ describe("workoutVolumeKg", () => {
     expect(workoutVolumeKg(w)).toBe(0);
   });
 
+  it("单动作 bodyweight + 体重 → 体重×sets×reps;不传/传 null 仍 0", () => {
+    const w = workout({ type: "strength", data: { exercise: "引体", weight_kg: 60, bodyweight: true, sets: 3, reps: 10 } });
+    expect(workoutVolumeKg(w, 70)).toBe(2100); // 70×3×10
+    expect(workoutVolumeKg(w, null)).toBe(0);
+  });
+
   it("会话:per-set 累加,不按 done 过滤(表单默认 done:false),bodyweight 组不计", () => {
     const w = workout({
       type: "strength",
@@ -270,6 +276,44 @@ describe("workoutVolumeKg", () => {
     expect(workoutVolumeKg(w)).toBe(1960);
   });
 
+  it("会话:bodyweight 组按 体重×次数 计入,器械组不变", () => {
+    const w = workout({
+      type: "strength",
+      data: {
+        exercise: "",
+        weight_kg: 0,
+        sets: 4,
+        session: true,
+        exercises: [
+          {
+            name: "卧推",
+            done: true,
+            sets: [
+              { weight_kg: 60, reps: 8, bodyweight: false, done: true },
+              { weight_kg: 60, reps: 8, bodyweight: false, done: true },
+            ],
+          },
+          {
+            name: "深蹲",
+            done: true,
+            sets: [
+              { weight_kg: 100, reps: 5, bodyweight: false, done: false },
+              { weight_kg: 100, reps: 5, bodyweight: false, done: true },
+            ],
+          },
+          {
+            name: "引体",
+            done: true,
+            sets: [{ weight_kg: 0, reps: 10, bodyweight: true, done: true }],
+          },
+        ],
+      },
+    });
+    // 60×8×2 + 100×5×2 + 70×10 = 2660;不传体重仍是旧口径 1960
+    expect(workoutVolumeKg(w, 70)).toBe(2660);
+    expect(workoutVolumeKg(w)).toBe(1960);
+  });
+
   it("会话:动作整体 done:false 也不影响统计", () => {
     const w = workout({
       type: "strength",
@@ -303,5 +347,48 @@ describe("workoutVolumeKg", () => {
         }),
       ),
     ).toBe(0);
+  });
+});
+
+describe("hasBodyweightGroups", () => {
+  it("单动作 bodyweight / 会话含自重组 → true", () => {
+    expect(
+      hasBodyweightGroups(workout({ type: "strength", data: { exercise: "引体", weight_kg: 0, bodyweight: true, sets: 1, reps: 10 } })),
+    ).toBe(true);
+    expect(
+      hasBodyweightGroups(
+        workout({
+          type: "strength",
+          data: {
+            exercise: "",
+            weight_kg: 0,
+            sets: 1,
+            session: true,
+            exercises: [{ name: "引体", done: true, sets: [{ weight_kg: 0, reps: 10, bodyweight: true, done: true }] }],
+          },
+        }),
+      ),
+    ).toBe(true);
+  });
+
+  it("纯器械会话 / 单动作 / 非力量 → false", () => {
+    expect(
+      hasBodyweightGroups(workout({ type: "strength", data: { exercise: "卧推", weight_kg: 60, sets: 3, reps: 10 } })),
+    ).toBe(false);
+    expect(
+      hasBodyweightGroups(
+        workout({
+          type: "strength",
+          data: {
+            exercise: "",
+            weight_kg: 0,
+            sets: 1,
+            session: true,
+            exercises: [{ name: "卧推", done: true, sets: [{ weight_kg: 60, reps: 8, bodyweight: false, done: true }] }],
+          },
+        }),
+      ),
+    ).toBe(false);
+    expect(hasBodyweightGroups(workout({ type: "running", data: { distance_meters: 1000, duration_seconds: 600, mood: 3 } }))).toBe(false);
   });
 });

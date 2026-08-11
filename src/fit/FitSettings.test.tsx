@@ -33,6 +33,7 @@ function buildChain(resolveValue: unknown) {
   p.eq = vi.fn().mockReturnValue(p);
   p.order = vi.fn().mockReturnValue(p);
   p.maybeSingle = vi.fn().mockReturnValue(p);
+  p.upsert = vi.fn().mockReturnValue(p);
   return p;
 }
 
@@ -105,5 +106,49 @@ describe("FitSettings 账号删除", () => {
     // 确认面板收起,按钮回到初始态
     expect(screen.queryByText(/确定要删除账号吗/)).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /删除账号/ })).toBeInTheDocument();
+  });
+});
+
+describe("FitSettings 体重输入", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("填写体重 → 失焦按当前单位换算为 kg 保存", async () => {
+    const chain = setupClient();
+    renderSettings();
+
+    const input = screen.getByLabelText("体重") as HTMLInputElement;
+    fireEvent.change(input, { target: { value: "154.3234" } });
+    fireEvent.blur(input);
+
+    await waitFor(() => expect(chain.upsert).toHaveBeenCalled(), { timeout: 2000 });
+    // 默认偏好单位 lb:70×2.20462=154.3234 lb → 70 kg
+    const payload = (chain.upsert as unknown as ReturnType<typeof vi.fn>).mock.calls[0][0] as { body_weight_kg: number };
+    expect(payload.body_weight_kg).toBeCloseTo(70, 5);
+  });
+
+  it("清空体重 → 保存为 null", async () => {
+    const chain = setupClient();
+    renderSettings();
+
+    const input = screen.getByLabelText("体重") as HTMLInputElement;
+    fireEvent.change(input, { target: { value: "" } });
+    fireEvent.blur(input);
+
+    await waitFor(() => expect(chain.upsert).toHaveBeenCalled(), { timeout: 2000 });
+    const payload = (chain.upsert as unknown as ReturnType<typeof vi.fn>).mock.calls[0][0] as { body_weight_kg: number | null };
+    expect(payload.body_weight_kg).toBeNull();
+  });
+
+  it("无效体重(≤0)→ 不保存", () => {
+    const chain = setupClient();
+    renderSettings();
+
+    const input = screen.getByLabelText("体重") as HTMLInputElement;
+    fireEvent.change(input, { target: { value: "0" } });
+    fireEvent.blur(input);
+
+    expect(chain.upsert).not.toHaveBeenCalled();
   });
 });

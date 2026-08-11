@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Workout, WorkoutType } from "../types";
@@ -10,6 +11,7 @@ import {
   kgToDisplay,
   workoutDistanceMeters,
   workoutVolumeKg,
+  hasBodyweightGroups,
 } from "../units";
 import {
   rangeWindow,
@@ -25,7 +27,7 @@ import {
 import { todayYmd } from "../dates";
 import { FitEmptyState } from "../EmptyState";
 import { TrendChart } from "../TrendChart";
-import { Footprints, Waves, Dumbbell, Target, TrendingUp, TrendingDown, Check } from "lucide-react";
+import { Footprints, Waves, Dumbbell, Target, TrendingUp, TrendingDown, Check, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -146,18 +148,26 @@ const FitStats = () => {
     return s.filter((x) => x.values.some((v) => v > 0)); // 滤空,单线时无图例
   }, [visible, buckets, prefs.distance_unit]);
 
-  // 重量卡:力量线(显示单位跟随偏好,内部按 kg 累加)
+  // 重量卡:力量线(显示单位跟随偏好,内部按 kg 累加;bodyweight 组注入用户体重)
   const weightSeries = useMemo(() => {
     const s = [
       {
         key: "strength",
         label: "力量",
         color: LINE_COLORS.strength,
-        values: seriesByType(visible, buckets, workoutVolumeKg).strength.map((v) => kgToDisplay(v, prefs.weight_unit)),
+        values: seriesByType(visible, buckets, (w) => workoutVolumeKg(w, prefs.body_weight_kg)).strength.map((v) =>
+          kgToDisplay(v, prefs.weight_unit),
+        ),
       },
     ];
     return s.filter((x) => x.values.some((v) => v > 0));
-  }, [visible, buckets, prefs.weight_unit]);
+  }, [visible, buckets, prefs.body_weight_kg, prefs.weight_unit]);
+
+  // 窗口内有自重训练但未填体重 → 重量卡提示条
+  const hasBodyweightMissing = useMemo(
+    () => visible.some(hasBodyweightGroups) && !prefs.body_weight_kg,
+    [visible, prefs.body_weight_kg],
+  );
 
   const xLabels = useMemo(
     () => buckets.map((b, i) => (buckets.length <= 7 || i % 5 === 0 ? String(b.start.getDate()) : null)),
@@ -244,6 +254,15 @@ const FitStats = () => {
                 <h3 className="text-xs text-fit-muted uppercase tracking-wider mb-4">
                   每日训练重量 ({prefs.weight_unit})
                 </h3>
+                {hasBodyweightMissing && (
+                  <Link
+                    to="/fit/settings"
+                    className="mb-3 flex items-center gap-1.5 rounded-md bg-fit-accent/10 border border-fit-accent/30 px-2.5 py-1.5 text-xs text-fit-accent hover:bg-fit-accent/15 transition-smooth"
+                  >
+                    <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                    未设置体重,自重训练未计入总重量
+                  </Link>
+                )}
                 {weightSeries.length > 0 ? (
                   <TrendChart series={weightSeries} xLabels={xLabels} ariaLabel="每日训练总重量趋势" />
                 ) : (

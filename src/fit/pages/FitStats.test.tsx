@@ -35,18 +35,22 @@ function buildChain(resolveValue: unknown) {
   p.eq = vi.fn().mockReturnValue(p);
   p.order = vi.fn().mockReturnValue(p);
   p.maybeSingle = vi.fn().mockReturnValue(p);
+  p.upsert = vi.fn().mockReturnValue(p);
   return p;
 }
 
-/** user_preferences 返回 km/kg/m;workouts 返回给定列表 */
-function setupClient(workouts: Workout[]) {
+/** user_preferences 返回 km/kg/m(可覆盖体重);workouts 返回给定列表 */
+function setupClient(workouts: Workout[], prefsOverrides: Record<string, unknown> = {}) {
   (
     supabase.from as unknown as {
       mockImplementation: (fn: (table: string) => unknown) => void;
     }
   ).mockImplementation((table: string) =>
     table === "user_preferences"
-      ? buildChain({ data: { user_id: TEST_USER.id, distance_unit: "km", weight_unit: "kg", pool_unit: "m" }, error: null })
+      ? buildChain({
+          data: { user_id: TEST_USER.id, distance_unit: "km", weight_unit: "kg", pool_unit: "m", ...prefsOverrides },
+          error: null,
+        })
       : buildChain({ data: workouts, error: null }),
   );
 }
@@ -369,5 +373,58 @@ describe("FitStats 分项指标折线图", () => {
     expect(await screen.findByText("暂无距离数据")).toBeInTheDocument();
     expect(screen.getByRole("img", { name: "每日训练总重量趋势" }).querySelectorAll("polyline")).toHaveLength(1);
     expect(screen.queryByRole("img", { name: "每日训练距离趋势" })).toBeNull();
+  });
+
+  it("窗口有自重组但未填体重 → 重量卡提示条,曲线空态", async () => {
+    setupClient([
+      makeWorkout({
+        type: "strength",
+        data: {
+          exercise: "",
+          weight_kg: 0,
+          sets: 1,
+          session: true,
+          exercises: [{ name: "引体", done: true, sets: [{ weight_kg: 0, reps: 10, bodyweight: true, done: true }] }],
+        },
+      }),
+    ]);
+    renderStats();
+
+    expect(await screen.findByText(/未设置体重,自重训练未计入总重量/)).toBeInTheDocument();
+    expect(screen.getByText("暂无重量数据")).toBeInTheDocument();
+  });
+
+  it("填了体重 → 提示条消失,自重组按 体重×次数 计入曲线", async () => {
+    setupClient(
+      [
+        makeWorkout({
+          type: "strength",
+          data: {
+            exercise: "",
+            weight_kg: 0,
+            sets: 1,
+            session: true,
+            exercises: [{ name: "引体", done: true, sets: [{ weight_kg: 0, reps: 10, bodyweight: true, done: true }] }],
+          },
+        }),
+      ],
+      { body_weight_kg: 70 },
+    );
+    renderStats();
+
+    const weight = await screen.findByRole("img", { name: "每日训练总重量趋势" });
+    expect(weight.querySelectorAll("polyline")).toHaveLength(1); // 70×10=700 > 0,曲线出现
+    expect(screen.queryByText("暂无重量数据")).toBeNull();
+    expect(screen.queryByText(/未设置体重,自重训练未计入总重量/)).toBeNull();
+  });
+
+  it("纯器械训练 → 无提示条", async () => {
+    setupClient([
+      makeWorkout({ type: "strength", date: daysAgo(2), data: { exercise: "卧推", weight_kg: 60, sets: 3, reps: 10 } }),
+    ]);
+    renderStats();
+
+    expect(await screen.findByRole("img", { name: "每日训练总重量趋势" })).toBeInTheDocument();
+    expect(screen.queryByText(/未设置体重,自重训练未计入总重量/)).toBeNull();
   });
 });

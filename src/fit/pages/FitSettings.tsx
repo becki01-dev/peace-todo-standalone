@@ -4,10 +4,12 @@ import { useAuth } from "@/hooks/useAuth";
 import { usePreferences } from "../usePreferences";
 import { DistanceUnit, PoolUnit, WeightUnit } from "../types";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Download, LogOut, Ruler, Dumbbell, Waves, Trash2 } from "lucide-react";
+import { Download, LogOut, Ruler, Dumbbell, Waves, Scale, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { formatNumber, kgToDisplay, weightInputToKg } from "../units";
 import { buildExportPayload, downloadJson } from "../exportData";
 import { todayYmd } from "../dates";
 import type { Task } from "@/types/task";
@@ -20,6 +22,24 @@ const FitSettings = () => {
   const [exporting, setExporting] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  // 体重输入:本地字符串,失焦/回车时校验保存(切换单位不换算数值,与 StrengthForm 惯例一致)
+  const [weightInput, setWeightInput] = useState(() =>
+    prefs.body_weight_kg ? formatNumber(kgToDisplay(prefs.body_weight_kg, prefs.weight_unit), 2) : "",
+  );
+
+  const commitWeight = () => {
+    const v = weightInput.trim();
+    if (v === "") {
+      update({ body_weight_kg: null });
+      return;
+    }
+    const n = parseFloat(v);
+    if (Number.isNaN(n) || n <= 0) {
+      setWeightInput(prefs.body_weight_kg ? formatNumber(kgToDisplay(prefs.body_weight_kg, prefs.weight_unit), 2) : "");
+      return;
+    }
+    update({ body_weight_kg: weightInputToKg(n, prefs.weight_unit) });
+  };
 
   // 删除账号:数据由 SECURITY DEFINER RPC 级联清理(客户端无法删除 auth 用户)
   const handleDeleteAccount = async () => {
@@ -101,6 +121,29 @@ const FitSettings = () => {
             options={["m", "yd"]}
             onChange={(v) => update({ pool_unit: v as PoolUnit })}
           />
+          <div className="flex items-center gap-3 p-4 rounded-xl bg-fit-card border border-fit-border">
+            <Scale className="w-4 h-4 text-fit-muted" />
+            <span className="flex-1 text-sm text-fit-foreground">体重</span>
+            <div className="flex items-center gap-1.5">
+              <Input
+                type="number"
+                inputMode="decimal"
+                min="0"
+                step="0.1"
+                value={weightInput}
+                placeholder="未设置"
+                aria-label="体重"
+                onChange={(e) => setWeightInput(e.target.value)}
+                onBlur={commitWeight}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+                }}
+                className="bg-fit-surface border-fit-border text-fit-foreground text-right w-24 h-9"
+              />
+              <span className="text-xs text-fit-muted w-7">{prefs.weight_unit}</span>
+            </div>
+          </div>
+          <p className="text-xs text-fit-muted px-1">体重用于自重训练(如引体向上)计入总重量统计,未填则不计。</p>
         </div>
         <p className="text-xs text-fit-muted mt-3 px-1">
           数据始终以公制存储,仅改变历史列表的显示单位。

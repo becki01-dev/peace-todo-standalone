@@ -40,6 +40,7 @@ export const PreferencesProvider = ({ children }: { children: ReactNode }) => {
             distance_unit: data.distance_unit as DistanceUnit,
             weight_unit: data.weight_unit as WeightUnit,
             pool_unit: data.pool_unit as PoolUnit,
+            body_weight_kg: data.body_weight_kg ?? null,
           });
         }
         setLoading(false);
