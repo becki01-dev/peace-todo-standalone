@@ -149,6 +149,28 @@ export const seriesByType = (
   return acc;
 };
 
+// ---- 体重历史(阶梯查找:训练日期取当天或之前最近一次记录,无覆盖 → null) ----
+
+export interface BodyWeightRecord {
+  date: string; // "YYYY-MM-DD"(本地)
+  weight_kg: number;
+}
+
+/** 体重阶梯函数:对给定日期返回"当天或之前最近一次"记录的体重;训练早于所有记录 → null */
+export const buildWeightAt = (records: BodyWeightRecord[]): ((d: Date) => number | null) => {
+  const sorted = [...records].sort((a, b) => a.date.localeCompare(b.date));
+  return (d: Date) => {
+    let w: number | null = null;
+    for (const r of sorted) {
+      const rd = parseYmdLocal(r.date);
+      if (!rd) continue;
+      if (rd > d) break; // 后续记录更晚,不再覆盖
+      w = r.weight_kg;
+    }
+    return w;
+  };
+};
+
 /** 把 [start, endExclusive) 按天分桶,超过 maxBars 根时聚合(桶跨多天) */
 export const bucketWindow = (start: Date, endExclusive: Date, maxBars = 60): Bucket[] => {
   const totalMs = endExclusive.getTime() - start.getTime();

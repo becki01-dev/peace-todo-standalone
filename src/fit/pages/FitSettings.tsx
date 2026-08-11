@@ -14,6 +14,7 @@ import { buildExportPayload, downloadJson } from "../exportData";
 import { todayYmd } from "../dates";
 import type { Task } from "@/types/task";
 import type { Workout } from "../types";
+import type { BodyWeightRecord } from "../stats";
 
 const FitSettings = () => {
   const navigate = useNavigate();
@@ -27,10 +28,12 @@ const FitSettings = () => {
     prefs.body_weight_kg ? formatNumber(kgToDisplay(prefs.body_weight_kg, prefs.weight_unit), 2) : "",
   );
 
-  const commitWeight = () => {
+  // 体重阶梯语义:今天写入一条记录,之后的训练按此体重,之前的历史点不变;清空 = 删今天记录
+  const commitWeight = async () => {
     const v = weightInput.trim();
     if (v === "") {
-      update({ body_weight_kg: null });
+      await update({ body_weight_kg: null });
+      await supabase.from("body_weight_history").delete().eq("user_id", user.id).eq("date", todayYmd());
       return;
     }
     const n = parseFloat(v);
@@ -38,7 +41,11 @@ const FitSettings = () => {
       setWeightInput(prefs.body_weight_kg ? formatNumber(kgToDisplay(prefs.body_weight_kg, prefs.weight_unit), 2) : "");
       return;
     }
-    update({ body_weight_kg: weightInputToKg(n, prefs.weight_unit) });
+    const kg = weightInputToKg(n, prefs.weight_unit);
+    await update({ body_weight_kg: kg });
+    await supabase
+      .from("body_weight_history")
+      .upsert({ user_id: user.id, date: todayYmd(), weight_kg: kg }, { onConflict: "user_id,date" });
   };
 
   // 删除账号:数据由 SECURITY DEFINER RPC 级联清理(客户端无法删除 auth 用户)
@@ -62,12 +69,13 @@ const FitSettings = () => {
     if (!user) return;
     setExporting(true);
     try {
-      const [tasksRes, workoutsRes, prefsRes] = await Promise.all([
+      const [tasksRes, workoutsRes, prefsRes, weightsRes] = await Promise.all([
         supabase.from("tasks").select("*").eq("user_id", user.id),
         supabase.from("workouts").select("*").eq("user_id", user.id).order("date", { ascending: true }),
         supabase.from("user_preferences").select("*").eq("user_id", user.id).maybeSingle(),
+        supabase.from("body_weight_history").select("*").eq("user_id", user.id).order("date", { ascending: true }),
       ]);
-      if (tasksRes.error || workoutsRes.error || prefsRes.error) {
+      if (tasksRes.error || workoutsRes.error || prefsRes.error || weightsRes.error) {
         throw new Error("读取数据失败");
       }
       downloadJson(
@@ -77,6 +85,7 @@ const FitSettings = () => {
             tasks: (tasksRes.data ?? []) as unknown as Task[],
             workouts: (workoutsRes.data ?? []) as unknown as Workout[],
             preferences: (prefsRes.data ?? null) as Record<string, unknown> | null,
+            body_weight_history: (weightsRes.data ?? []) as BodyWeightRecord[],
           },
           user,
           new Date().toISOString(),

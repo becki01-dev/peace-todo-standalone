@@ -6,6 +6,7 @@ import { PreferencesProvider } from "./usePreferences";
 import { Toaster } from "@/components/ui/sonner";
 import { supabase } from "@/integrations/supabase/client";
 import FitSettings from "./pages/FitSettings";
+import { todayYmd } from "./dates";
 
 const { TEST_USER } = vi.hoisted(() => ({
   TEST_USER: { id: "user-1", email: "tester@example.com" },
@@ -34,6 +35,7 @@ function buildChain(resolveValue: unknown) {
   p.order = vi.fn().mockReturnValue(p);
   p.maybeSingle = vi.fn().mockReturnValue(p);
   p.upsert = vi.fn().mockReturnValue(p);
+  p.delete = vi.fn().mockReturnValue(p);
   return p;
 }
 
@@ -114,7 +116,7 @@ describe("FitSettings 体重输入", () => {
     vi.clearAllMocks();
   });
 
-  it("填写体重 → 失焦按当前单位换算为 kg 保存", async () => {
+  it("填写体重 → 失焦按当前单位换算为 kg 保存,并写入今日体重历史", async () => {
     const chain = setupClient();
     renderSettings();
 
@@ -122,13 +124,19 @@ describe("FitSettings 体重输入", () => {
     fireEvent.change(input, { target: { value: "154.3234" } });
     fireEvent.blur(input);
 
-    await waitFor(() => expect(chain.upsert).toHaveBeenCalled(), { timeout: 2000 });
-    // 默认偏好单位 lb:70×2.20462=154.3234 lb → 70 kg
-    const payload = (chain.upsert as unknown as ReturnType<typeof vi.fn>).mock.calls[0][0] as { body_weight_kg: number };
-    expect(payload.body_weight_kg).toBeCloseTo(70, 5);
+    await waitFor(() => expect(chain.upsert).toHaveBeenCalledTimes(2), { timeout: 2000 });
+    const calls = (chain.upsert as unknown as ReturnType<typeof vi.fn>).mock.calls;
+    // 1) 偏好:默认单位 lb,70×2.20462=154.3234 lb → 70 kg
+    const prefsPayload = calls[0][0] as { body_weight_kg: number };
+    expect(prefsPayload.body_weight_kg).toBeCloseTo(70, 5);
+    // 2) 体重历史:今日一条记录,同日 upsert(onConflict 防重复)
+    const historyPayload = calls[1][0] as { user_id: string; date: string; weight_kg: number };
+    expect(historyPayload).toMatchObject({ user_id: TEST_USER.id, date: todayYmd() });
+    expect(historyPayload.weight_kg).toBeCloseTo(70, 5);
+    expect(calls[1][1]).toEqual({ onConflict: "user_id,date" });
   });
 
-  it("清空体重 → 保存为 null", async () => {
+  it("清空体重 → 偏好置 null,并删除今日体重历史", async () => {
     const chain = setupClient();
     renderSettings();
 
@@ -139,6 +147,7 @@ describe("FitSettings 体重输入", () => {
     await waitFor(() => expect(chain.upsert).toHaveBeenCalled(), { timeout: 2000 });
     const payload = (chain.upsert as unknown as ReturnType<typeof vi.fn>).mock.calls[0][0] as { body_weight_kg: number | null };
     expect(payload.body_weight_kg).toBeNull();
+    await waitFor(() => expect(chain.delete).toHaveBeenCalled(), { timeout: 2000 });
   });
 
   it("无效体重(≤0)→ 不保存", () => {

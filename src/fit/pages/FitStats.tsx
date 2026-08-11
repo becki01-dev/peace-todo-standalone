@@ -23,6 +23,8 @@ import {
   bucketWindow,
   seriesByType,
   ymdDaysAgo,
+  buildWeightAt,
+  BodyWeightRecord,
 } from "../stats";
 import { todayYmd } from "../dates";
 import { FitEmptyState } from "../EmptyState";
@@ -63,6 +65,7 @@ const FitStats = () => {
   const [customEnd, setCustomEnd] = useState(todayYmd);
   const [typeFilter, setTypeFilter] = useState<WorkoutType | null>(null);
   const [loading, setLoading] = useState(true);
+  const [weightHistory, setWeightHistory] = useState<BodyWeightRecord[]>([]);
 
   useEffect(() => {
     if (!user) return;
@@ -79,6 +82,21 @@ const FitStats = () => {
         setLoading(false);
       });
   }, [user]);
+
+  // 体重历史:阶梯查找,训练日期取"当天或之前最近一次"体重
+  useEffect(() => {
+    if (!user) return;
+    supabase
+      .from("body_weight_history")
+      .select("date, weight_kg")
+      .eq("user_id", user.id)
+      .then(({ data }) => {
+        setWeightHistory((data ?? []) as BodyWeightRecord[]);
+      })
+      .catch(() => {});
+  }, [user]);
+
+  const weightAt = useMemo(() => buildWeightAt(weightHistory), [weightHistory]);
 
   // 窗口:[start, endExclusive) 半开区间;自定义起>止或非法 → null
   const window = useMemo(() => rangeWindow(range, customStart, customEnd), [range, customStart, customEnd]);
@@ -148,25 +166,25 @@ const FitStats = () => {
     return s.filter((x) => x.values.some((v) => v > 0)); // 滤空,单线时无图例
   }, [visible, buckets, prefs.distance_unit]);
 
-  // 重量卡:力量线(显示单位跟随偏好,内部按 kg 累加;bodyweight 组注入用户体重)
+  // 重量卡:力量线(显示单位跟随偏好,内部按 kg 累加;bodyweight 组按训练日期的体重注入)
   const weightSeries = useMemo(() => {
     const s = [
       {
         key: "strength",
         label: "力量",
         color: LINE_COLORS.strength,
-        values: seriesByType(visible, buckets, (w) => workoutVolumeKg(w, prefs.body_weight_kg)).strength.map((v) =>
+        values: seriesByType(visible, buckets, (w) => workoutVolumeKg(w, weightAt(new Date(w.date)))).strength.map((v) =>
           kgToDisplay(v, prefs.weight_unit),
         ),
       },
     ];
     return s.filter((x) => x.values.some((v) => v > 0));
-  }, [visible, buckets, prefs.body_weight_kg, prefs.weight_unit]);
+  }, [visible, buckets, weightAt, prefs.weight_unit]);
 
-  // 窗口内有自重训练但未填体重 → 重量卡提示条
+  // 窗口内自重训练的日期没有体重覆盖 → 重量卡提示条(阶梯语义:早于首次记录的训练无体重)
   const hasBodyweightMissing = useMemo(
-    () => visible.some(hasBodyweightGroups) && !prefs.body_weight_kg,
-    [visible, prefs.body_weight_kg],
+    () => visible.some((w) => hasBodyweightGroups(w) && weightAt(new Date(w.date)) == null),
+    [visible, weightAt],
   );
 
   const xLabels = useMemo(
@@ -260,7 +278,7 @@ const FitStats = () => {
                     className="mb-3 flex items-center gap-1.5 rounded-md bg-fit-accent/10 border border-fit-accent/30 px-2.5 py-1.5 text-xs text-fit-accent hover:bg-fit-accent/15 transition-smooth"
                   >
                     <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                    未设置体重,自重训练未计入总重量
+                    部分自重训练未计入总重量(缺少体重记录)
                   </Link>
                 )}
                 {weightSeries.length > 0 ? (

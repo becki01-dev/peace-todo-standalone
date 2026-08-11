@@ -14,6 +14,7 @@ import {
   seriesByType,
   startOfDay,
   shiftDays,
+  buildWeightAt,
 } from "./stats";
 import { workoutDistanceMeters, workoutVolumeKg, hasBodyweightGroups } from "./units";
 import type { Workout } from "./types";
@@ -347,6 +348,35 @@ describe("workoutVolumeKg", () => {
         }),
       ),
     ).toBe(0);
+  });
+});
+
+describe("buildWeightAt", () => {
+  it("取当天或之前最近一次记录的体重(阶梯覆盖)", () => {
+    const weightAt = buildWeightAt([
+      { date: "2026-08-05", weight_kg: 70 },
+      { date: "2026-08-08", weight_kg: 75 },
+    ]);
+    expect(weightAt(new Date(2026, 7, 4))).toBeNull(); // 早于首次记录 → 无覆盖
+    expect(weightAt(new Date(2026, 7, 5))).toBe(70); // 当天
+    expect(weightAt(new Date(2026, 7, 6))).toBe(70); // 两次记录之间取旧值
+    expect(weightAt(new Date(2026, 7, 7))).toBe(70);
+    expect(weightAt(new Date(2026, 7, 8))).toBe(75); // 改体重当天生效
+    expect(weightAt(new Date(2026, 7, 30))).toBe(75); // 之后延续
+  });
+
+  it("乱序输入不影响结果", () => {
+    const weightAt = buildWeightAt([
+      { date: "2026-08-08", weight_kg: 75 },
+      { date: "2026-08-05", weight_kg: 70 },
+    ]);
+    expect(weightAt(new Date(2026, 7, 6))).toBe(70);
+    expect(weightAt(new Date(2026, 7, 8))).toBe(75);
+  });
+
+  it("空记录 → 恒 null", () => {
+    const weightAt = buildWeightAt([]);
+    expect(weightAt(new Date(2026, 7, 10))).toBeNull();
   });
 });
 

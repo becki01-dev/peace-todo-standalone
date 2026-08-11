@@ -1,11 +1,13 @@
 import type { User } from "@supabase/supabase-js";
 import type { Workout } from "./types";
 import type { Task } from "@/types/task";
+import type { BodyWeightRecord } from "./stats";
 
 export interface ExportBundle {
   tasks: Task[];
   workouts: Workout[];
   preferences: Record<string, unknown> | null;
+  body_weight_history: BodyWeightRecord[];
 }
 
 /** 组装导出载荷:原始存储数据(公制),不含单位换算 */
@@ -16,6 +18,7 @@ export const buildExportPayload = (bundle: ExportBundle, user: User, exportedAt:
   preferences: bundle.preferences ?? null,
   tasks: bundle.tasks,
   workouts: bundle.workouts,
+  body_weight_history: bundle.body_weight_history,
 });
 
 /** 触发浏览器下载 JSON 文件 */

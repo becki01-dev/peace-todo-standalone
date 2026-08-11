@@ -8,6 +8,7 @@ import { PreferencesProvider } from "../usePreferences";
 import { supabase } from "@/integrations/supabase/client";
 import FitStats from "./FitStats";
 import type { Workout } from "../types";
+import type { BodyWeightRecord } from "../stats";
 
 const { TEST_USER } = vi.hoisted(() => ({
   TEST_USER: { id: "user-1", email: "tester@example.com" },
@@ -39,8 +40,8 @@ function buildChain(resolveValue: unknown) {
   return p;
 }
 
-/** user_preferences 返回 km/kg/m(可覆盖体重);workouts 返回给定列表 */
-function setupClient(workouts: Workout[], prefsOverrides: Record<string, unknown> = {}) {
+/** user_preferences 返回 km/kg/m(可覆盖体重);body_weight_history 返回给定记录;workouts 返回给定列表 */
+function setupClient(workouts: Workout[], prefsOverrides: Record<string, unknown> = {}, weightHistory: BodyWeightRecord[] = []) {
   (
     supabase.from as unknown as {
       mockImplementation: (fn: (table: string) => unknown) => void;
@@ -51,7 +52,9 @@ function setupClient(workouts: Workout[], prefsOverrides: Record<string, unknown
           data: { user_id: TEST_USER.id, distance_unit: "km", weight_unit: "kg", pool_unit: "m", ...prefsOverrides },
           error: null,
         })
-      : buildChain({ data: workouts, error: null }),
+      : table === "body_weight_history"
+        ? buildChain({ data: weightHistory, error: null })
+        : buildChain({ data: workouts, error: null }),
   );
 }
 
@@ -375,7 +378,7 @@ describe("FitStats 分项指标折线图", () => {
     expect(screen.queryByRole("img", { name: "每日训练距离趋势" })).toBeNull();
   });
 
-  it("窗口有自重组但未填体重 → 重量卡提示条,曲线空态", async () => {
+  it("自重组日期无体重覆盖 → 重量卡提示条,曲线空态", async () => {
     setupClient([
       makeWorkout({
         type: "strength",
@@ -390,11 +393,11 @@ describe("FitStats 分项指标折线图", () => {
     ]);
     renderStats();
 
-    expect(await screen.findByText(/未设置体重,自重训练未计入总重量/)).toBeInTheDocument();
+    expect(await screen.findByText(/部分自重训练未计入总重量/)).toBeInTheDocument();
     expect(screen.getByText("暂无重量数据")).toBeInTheDocument();
   });
 
-  it("填了体重 → 提示条消失,自重组按 体重×次数 计入曲线", async () => {
+  it("体重记录覆盖训练日 → 提示条消失,自重组按 体重×次数 计入曲线", async () => {
     setupClient(
       [
         makeWorkout({
@@ -408,14 +411,51 @@ describe("FitStats 分项指标折线图", () => {
           },
         }),
       ],
-      { body_weight_kg: 70 },
+      {},
+      [{ date: daysAgoYmd(2), weight_kg: 70 }],
     );
     renderStats();
 
     const weight = await screen.findByRole("img", { name: "每日训练总重量趋势" });
     expect(weight.querySelectorAll("polyline")).toHaveLength(1); // 70×10=700 > 0,曲线出现
     expect(screen.queryByText("暂无重量数据")).toBeNull();
-    expect(screen.queryByText(/未设置体重,自重训练未计入总重量/)).toBeNull();
+    expect(screen.queryByText(/部分自重训练未计入总重量/)).toBeNull();
+  });
+
+  it("体重阶梯:部分训练日无覆盖 → 提示条仍显示,有覆盖的计入曲线", async () => {
+    // 5 天前(无体重记录)与 2 天前(覆盖 70kg)各一次引体
+    setupClient(
+      [
+        makeWorkout({
+          type: "strength",
+          date: daysAgo(5),
+          data: {
+            exercise: "",
+            weight_kg: 0,
+            sets: 1,
+            session: true,
+            exercises: [{ name: "引体", done: true, sets: [{ weight_kg: 0, reps: 10, bodyweight: true, done: true }] }],
+          },
+        }),
+        makeWorkout({
+          type: "strength",
+          date: daysAgo(2),
+          data: {
+            exercise: "",
+            weight_kg: 0,
+            sets: 1,
+            session: true,
+            exercises: [{ name: "引体", done: true, sets: [{ weight_kg: 0, reps: 10, bodyweight: true, done: true }] }],
+          },
+        }),
+      ],
+      {},
+      [{ date: daysAgoYmd(2), weight_kg: 70 }],
+    );
+    renderStats();
+
+    expect(await screen.findByRole("img", { name: "每日训练总重量趋势" })).toBeInTheDocument(); // 2 天前 700kg 计入
+    expect(screen.getByText(/部分自重训练未计入总重量/)).toBeInTheDocument(); // 5 天前无覆盖
   });
 
   it("纯器械训练 → 无提示条", async () => {
@@ -425,6 +465,6 @@ describe("FitStats 分项指标折线图", () => {
     renderStats();
 
     expect(await screen.findByRole("img", { name: "每日训练总重量趋势" })).toBeInTheDocument();
-    expect(screen.queryByText(/未设置体重,自重训练未计入总重量/)).toBeNull();
+    expect(screen.queryByText(/部分自重训练未计入总重量/)).toBeNull();
   });
 });
