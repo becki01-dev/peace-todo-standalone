@@ -14,6 +14,9 @@ const TITLES: Record<string, string> = {
   "/fit/strength/session": "力量训练",
 };
 
+// 嵌套子页面(表单等):返回目标是 ZenFit 主页而非应用主页
+const SUB_PAGES = ["/fit/strength/session"];
+
 const FitLayoutInner = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -50,11 +53,11 @@ const FitLayoutInner = () => {
         <div className="max-w-2xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <Link
-              to="/"
+              to={SUB_PAGES.includes(location.pathname) ? "/fit" : "/"}
               className="inline-flex items-center text-xs text-fit-muted hover:text-fit-foreground transition-smooth mr-1"
             >
               <ChevronLeft className="w-3.5 h-3.5 mr-0.5" />
-              返回主页
+              {SUB_PAGES.includes(location.pathname) ? "返回 ZenFit" : "返回主页"}
             </Link>
             <div className="w-9 h-9 rounded-xl bg-fit-accent text-fit-accent-foreground flex items-center justify-center">
               <Flame className="w-5 h-5" strokeWidth={2.5} />
