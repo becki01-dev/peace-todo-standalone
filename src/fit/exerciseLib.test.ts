@@ -2,9 +2,16 @@ import { describe, expect, it } from "vitest";
 import {
   PRESET_DEFS,
   BODY_PART_LABELS,
-  resolveBodyPart,
+  EXERCISE_ALIASES,
+  EXERCISE_EN,
+  EXERCISE_ZH_ALIASES,
+  aliasesFor,
+  displayName,
   exerciseDefaults,
+  exerciseSearchMatch,
   frequentExerciseNames,
+  normalizeExerciseName,
+  resolveBodyPart,
   type UserExercise,
 } from "./exerciseLib";
 import type { Workout } from "./types";
@@ -96,11 +103,116 @@ describe("frequentExerciseNames", () => {
 });
 
 describe("PRESET_DEFS 种子完整性", () => {
-  it("12 个预设动作都有有效部位与中文标签", () => {
+  it("12 个预设动作都有有效部位、中文标签与英文名", () => {
     expect(PRESET_DEFS).toHaveLength(12);
     PRESET_DEFS.forEach((p) => {
       expect(BODY_PART_LABELS[p.body_part]).toBeTruthy();
       expect(p.default_reps).toBeGreaterThan(0);
+      expect(p.en).toBeTruthy();
     });
+  });
+});
+
+describe("EXERCISE_ALIASES 完整性", () => {
+  it("别名键全小写、值为中文规范名;预设 en 收录且映射回自己", () => {
+    const zhValues = new Set(Object.values(EXERCISE_ALIASES));
+    Object.entries(EXERCISE_ALIASES).forEach(([en, zh]) => {
+      expect(en).toBe(en.toLowerCase());
+      expect(zh).toMatch(/[一-鿿]/); // 规范名必须含中文
+    });
+    PRESET_DEFS.forEach((p) => {
+      expect(EXERCISE_ALIASES[p.en.toLowerCase()]).toBe(p.name);
+    });
+    // 所有规范名(预设 + 非预设)都有显示英文名;EXERCISE_EN 不与预设重复
+    const presetNames = new Set(PRESET_DEFS.map((p) => p.name));
+    zhValues.forEach((zh) => {
+      if (!presetNames.has(zh)) expect(EXERCISE_EN[zh]).toBeTruthy();
+    });
+    Object.keys(EXERCISE_EN).forEach((zh) => {
+      expect(presetNames.has(zh)).toBe(false);
+    });
+  });
+});
+
+describe("EXERCISE_ZH_ALIASES 完整性", () => {
+  it("中文变体的规范名都能查到英文(预设或 EXERCISE_EN)", () => {
+    Object.values(EXERCISE_ZH_ALIASES).forEach((zh) => {
+      const preset = PRESET_DEFS.find((p) => p.name === zh);
+      expect(preset?.en ?? EXERCISE_EN[zh]).toBeTruthy();
+    });
+  });
+});
+
+describe("displayName", () => {
+  it("中文规范名 → 中文 (英文)", () => {
+    expect(displayName("深蹲")).toBe("深蹲 (Squat)");
+    expect(displayName("二头弯举")).toBe("二头弯举 (Bicep Curl)");
+  });
+
+  it("英文名/别名 → 中文 (原文,保留大小写)", () => {
+    expect(displayName("Squat")).toBe("深蹲 (Squat)");
+    expect(displayName("back squat")).toBe("深蹲 (back squat)");
+    expect(displayName("BENCH")).toBe("卧推 (BENCH)");
+    expect(displayName("leg curl")).toBe("腿弯举 (leg curl)");
+  });
+
+  it("非预设规范名 → 中文 (EXERCISE_EN 英文名)", () => {
+    expect(displayName("腿弯举")).toBe("腿弯举 (Leg Curl)");
+    expect(displayName("高位下拉")).toBe("高位下拉 (Lat Pulldown)");
+  });
+
+  it("中文变体 → 变体 (规范英文名)", () => {
+    expect(displayName("俄罗斯卷腹")).toBe("俄罗斯卷腹 (Russian Twist)");
+    expect(displayName("russian crunch")).toBe("俄罗斯转体 (russian crunch)");
+    expect(displayName("卷腹提腿")).toBe("卷腹提腿 (Leg Raise)");
+    expect(displayName("back bend")).toBe("背伸展 (back bend)");
+  });
+
+  it("无映射 → 原样返回(含空串)", () => {
+    expect(displayName("深蹲拉雪橇")).toBe("深蹲拉雪橇");
+    expect(displayName("")).toBe("");
+  });
+});
+
+describe("normalizeExerciseName", () => {
+  it("英文别名(任意大小写/空白)→ 中文规范名", () => {
+    expect(normalizeExerciseName("squat")).toBe("深蹲");
+    expect(normalizeExerciseName("Back Squat")).toBe("深蹲");
+    expect(normalizeExerciseName("SQUAT")).toBe("深蹲");
+    expect(normalizeExerciseName("chin ups")).toBe("引体向上");
+    expect(normalizeExerciseName(" 卧推 ")).toBe("卧推");
+  });
+
+  it("已中文规范名保持;无映射原样", () => {
+    expect(normalizeExerciseName("深蹲")).toBe("深蹲");
+    expect(normalizeExerciseName("腿弯举")).toBe("腿弯举");
+    expect(normalizeExerciseName("squat machine")).toBe("squat machine");
+    expect(normalizeExerciseName("")).toBe("");
+  });
+});
+
+describe("exerciseSearchMatch", () => {
+  it("中文名或任一英文别名包含 q 即命中(大小写不敏感)", () => {
+    expect(exerciseSearchMatch("深蹲", "squat")).toBe(true);
+    expect(exerciseSearchMatch("深蹲", "SQUAT")).toBe(true);
+    expect(exerciseSearchMatch("深蹲", "back squat")).toBe(true);
+    expect(exerciseSearchMatch("二头弯举", "bicep")).toBe(true);
+    expect(exerciseSearchMatch("二头弯举", "弯举")).toBe(true);
+    expect(exerciseSearchMatch("腿弯举", "leg curl")).toBe(true);
+    expect(exerciseSearchMatch("腿弯举", "腿弯举")).toBe(true);
+  });
+
+  it("不命中与空查询", () => {
+    expect(exerciseSearchMatch("深蹲", "sqat")).toBe(false);
+    expect(exerciseSearchMatch("深蹲拉雪橇", "squat")).toBe(false);
+    expect(exerciseSearchMatch("深蹲", "")).toBe(true);
+  });
+});
+
+describe("aliasesFor", () => {
+  it("预设动作返回 en + 全部别名;非预设返回别名反查结果", () => {
+    expect(aliasesFor("深蹲")).toContain("Squat");
+    expect(aliasesFor("深蹲")).toContain("goblet squat");
+    expect(aliasesFor("Squat")).toHaveLength(0); // 非规范名不反查
   });
 });

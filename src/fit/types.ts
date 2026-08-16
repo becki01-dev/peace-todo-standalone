@@ -1,3 +1,5 @@
+import type { BodyPart } from "./exerciseLib";
+
 export type WorkoutType = "running" | "swimming" | "strength" | "swimming_set";
 
 export type DistanceUnit = "km" | "mi";
@@ -77,6 +79,7 @@ export interface StrengthData {
   exercises?: Array<{
     name: string;
     done?: boolean;
+    body_part?: BodyPart; // 动作部位(会话表单保存;老记录无此字段)
     input_unit?: WeightUnit; // 记录输入时使用的单位
     sets: Array<{
       weight_kg: number;

@@ -139,7 +139,7 @@ describe("StrengthForm (力量训练统一表单)", () => {
     const chain = setupClient({ data: null, error: null });
     renderSession();
 
-    fireEvent.click(await screen.findByRole("button", { name: "深蹲" }));
+    fireEvent.click(await screen.findByRole("button", { name: /深蹲/ }));
     expect(screen.getByText("第 1 组")).toBeInTheDocument();
 
     fireEvent.change(screen.getByPlaceholderText("重量"), { target: { value: "60" } });
@@ -264,7 +264,7 @@ describe("StrengthForm (力量训练统一表单)", () => {
     const chain = setupClient({ data: null, error: null });
     renderSession();
 
-    fireEvent.click(await screen.findByRole("button", { name: "深蹲" }));
+    fireEvent.click(await screen.findByRole("button", { name: /深蹲/ }));
     fireEvent.change(screen.getByPlaceholderText("次数"), { target: { value: "0" } });
     fireEvent.click(screen.getByRole("button", { name: /完成训练/ }));
 
@@ -325,7 +325,7 @@ describe("StrengthForm (力量训练统一表单)", () => {
     const chain = setupClient({ data: null, error: null });
     renderSession();
 
-    fireEvent.click(await screen.findByRole("button", { name: "深蹲" }));
+    fireEvent.click(await screen.findByRole("button", { name: /深蹲/ }));
     fireEvent.change(screen.getByPlaceholderText("重量"), { target: { value: "60" } });
     fireEvent.change(screen.getByPlaceholderText("如 45"), { target: { value: "45" } });
     fireEvent.click(screen.getByRole("button", { name: /完成训练/ }));
@@ -342,7 +342,7 @@ describe("StrengthForm (力量训练统一表单)", () => {
     const chain = setupClient({ data: null, error: null });
     renderSession();
 
-    fireEvent.click(await screen.findByRole("button", { name: "深蹲" }));
+    fireEvent.click(await screen.findByRole("button", { name: /深蹲/ }));
     fireEvent.change(screen.getByPlaceholderText("重量"), { target: { value: "60" } });
     fireEvent.click(screen.getByRole("button", { name: /完成训练/ }));
 
@@ -354,7 +354,7 @@ describe("StrengthForm (力量训练统一表单)", () => {
     const chain = setupClient({ data: null, error: null });
     renderSession();
 
-    fireEvent.click(await screen.findByRole("button", { name: "深蹲" }));
+    fireEvent.click(await screen.findByRole("button", { name: /深蹲/ }));
     fireEvent.change(screen.getByPlaceholderText("重量"), { target: { value: "60" } });
     fireEvent.change(screen.getByPlaceholderText("如 45"), { target: { value: "-10" } });
     fireEvent.click(screen.getByRole("button", { name: /完成训练/ }));
@@ -382,7 +382,7 @@ describe("StrengthForm (力量训练统一表单)", () => {
     setupClient({ data: null, error: null });
     renderSession();
 
-    fireEvent.click(await screen.findByRole("button", { name: "引体向上" }));
+    fireEvent.click(await screen.findByRole("button", { name: /引体向上/ }));
 
     const weightInput = screen.getByPlaceholderText("重量") as HTMLInputElement;
     expect(weightInput).toBeDisabled();
@@ -426,7 +426,7 @@ describe("StrengthForm (力量训练统一表单)", () => {
     const chain = setupClient({ data: null, error: null });
     renderSession();
 
-    fireEvent.click(await screen.findByRole("button", { name: "引体向上" }));
+    fireEvent.click(await screen.findByRole("button", { name: /引体向上/ }));
     fireEvent.change(screen.getByPlaceholderText("如 45"), { target: { value: "30" } });
     fireEvent.click(screen.getByRole("button", { name: /完成训练/ }));
 
@@ -442,5 +442,103 @@ describe("StrengthForm (力量训练统一表单)", () => {
       expect.objectContaining({ name: "引体向上", body_part: "back", bodyweight_default: true, default_reps: 10 }),
     ]);
     expect(upsert.mock.calls[0][1]).toEqual({ onConflict: "user_id,name" });
+  });
+
+  it("自定义输入英文名 → 归一化为中文 + toast 提示 + 预设默认生效", async () => {
+    const chain = setupClient({ data: null, error: null });
+    renderSession();
+
+    fireEvent.change(screen.getByPlaceholderText("自定义动作名称"), { target: { value: "squat" } });
+    fireEvent.click(screen.getByRole("button", { name: /添加动作/ }));
+
+    expect(await screen.findByDisplayValue("深蹲")).toBeInTheDocument();
+    expect(screen.getByText(/已识别「squat」→「深蹲」/)).toBeInTheDocument();
+
+    fireEvent.change(screen.getByPlaceholderText("重量"), { target: { value: "60" } });
+    fireEvent.change(screen.getByPlaceholderText("如 45"), { target: { value: "45" } });
+    fireEvent.click(screen.getByRole("button", { name: /完成训练/ }));
+
+    await waitFor(() => expect(chain.insert).toHaveBeenCalled(), { timeout: 2000 });
+    expect(chain.insert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          exercise: "深蹲",
+          exercises: [expect.objectContaining({ name: "深蹲", body_part: "legs" })],
+        }),
+      }),
+    );
+  });
+
+  it("更多动作下拉:英文搜索命中中文预设并显示双语", async () => {
+    setupClient({ data: null, error: null });
+    renderSession();
+
+    fireEvent.click(await screen.findByRole("button", { name: /更多动作/ }));
+    fireEvent.change(screen.getByPlaceholderText("搜索动作"), { target: { value: "bicep" } });
+
+    fireEvent.click(screen.getByRole("button", { name: /二头弯举 \(Bicep Curl\)/ }));
+    expect(screen.getByDisplayValue("二头弯举")).toBeInTheDocument();
+  });
+
+  it("编辑:动作卡内改名英文 → 保存时归一化为中文", async () => {
+    const workout = makeStrengthWorkout({});
+    const chain = setupClient({ data: workout, error: null });
+    renderSession("/fit/strength/session?edit=w1");
+
+    expect(await screen.findByDisplayValue("深蹲")).toBeInTheDocument();
+    fireEvent.change(screen.getByDisplayValue("深蹲"), { target: { value: "bench" } });
+
+    fireEvent.click(screen.getByRole("button", { name: /更新记录/ }));
+
+    await waitFor(() => expect(chain.update).toHaveBeenCalled(), { timeout: 2000 });
+    expect(chain.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          exercises: expect.arrayContaining([expect.objectContaining({ name: "卧推" })]),
+        }),
+      }),
+    );
+  });
+
+  it("自定义输入无映射英文名 → 原样保留且无 toast", async () => {
+    setupClient({ data: null, error: null });
+    renderSession();
+
+    fireEvent.change(screen.getByPlaceholderText("自定义动作名称"), { target: { value: "squat machine" } });
+    fireEvent.click(screen.getByRole("button", { name: /添加动作/ }));
+
+    expect(await screen.findByDisplayValue("squat machine")).toBeInTheDocument();
+    expect(screen.queryByText(/已识别/)).toBeNull();
+  });
+
+  it("编辑:恢复保存时选定的动作部位(不回退全身)", async () => {
+    const workout = makeStrengthWorkout({
+      data: {
+        ...makeStrengthWorkout({}).data,
+        exercises: [
+          {
+            name: "Squat",
+            done: false,
+            body_part: "legs",
+            input_unit: "kg",
+            sets: [{ weight_kg: 100, reps: 10, bodyweight: false, done: false }],
+          },
+        ],
+      },
+    });
+    setupClient({ data: workout, error: null });
+    renderSession("/fit/strength/session?edit=w1");
+
+    const partSelect = (await screen.findByLabelText("锻炼部位")) as HTMLSelectElement;
+    expect(partSelect.value).toBe("legs");
+  });
+
+  it("编辑:动作卡显示双语小字(中文 (英文))", async () => {
+    const workout = makeStrengthWorkout({});
+    setupClient({ data: workout, error: null });
+    renderSession("/fit/strength/session?edit=w1");
+
+    expect(await screen.findByDisplayValue("深蹲")).toBeInTheDocument();
+    expect(screen.getAllByText("深蹲 (Squat)").length).toBeGreaterThan(0);
   });
 });

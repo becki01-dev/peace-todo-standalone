@@ -1,6 +1,7 @@
 import { Footprints, Waves, Dumbbell, Trash2, Pencil, Target, Copy } from "lucide-react";
 import { Workout, RunningData, SwimmingData, StrengthData, SwimmingMultiSetData, SwimmingSetData, DistanceUnit, WeightUnit, PoolUnit } from "./types";
 import { usePreferences } from "./usePreferences";
+import { displayName } from "./exerciseLib";
 import {
   metersToDisplay,
   poolMetersToDisplay,
@@ -104,10 +105,10 @@ export const WorkoutCard = ({ workout, onDelete, onEdit, onCopy }: {
   } else {
     const d = workout.data as StrengthData;
     const isSession = !!d.session && Array.isArray(d.exercises) && d.exercises.length > 0;
-    primary = isSession ? "力量训练" : d.exercise;
+    primary = isSession ? "力量训练" : displayName(d.exercise);
     if (isSession) {
       const doneCount = d.exercises?.filter((e) => e.done).length ?? 0;
-      const names = d.exercises?.slice(0, 2).map((e) => e.name).join(" · ") ?? "";
+      const names = d.exercises?.slice(0, 2).map((e) => displayName(e.name)).join(" · ") ?? "";
       const more = (d.exercises?.length ?? 0) > 2 ? ` +${(d.exercises?.length ?? 0) - 2}` : "";
       const durText = d.duration_seconds ? ` · ${formatDuration(d.duration_seconds)}` : "";
       secondary = `${doneCount}/${d.exercises?.length ?? 0} 动作完成 · ${d.sets} 组${durText} · ${names}${more}`;

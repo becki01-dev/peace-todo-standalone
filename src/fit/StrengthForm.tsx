@@ -13,8 +13,11 @@ import {
   BODY_PARTS,
   BODY_PART_LABELS,
   PRESET_DEFS,
+  displayName,
   exerciseDefaults,
+  exerciseSearchMatch,
   frequentExerciseNames,
+  normalizeExerciseName,
   resolveBodyPart,
   type BodyPart,
   type UserExercise,
@@ -80,7 +83,8 @@ function workoutToExercises(workout: Workout | undefined, defaultUnit: WeightUni
         id: `exercise-${idx}-${Date.now()}`,
         name: ex.name,
         done: ex.done || false,
-        body_part: resolveBodyPart(ex.name, []), // 老记录无部位字段,preset 兜底(字典加载后可在部位选择里改)
+        // 优先恢复保存时选定的部位;老记录无该字段才重新解析兜底
+        body_part: ex.body_part ?? resolveBodyPart(ex.name, []),
         sets: (ex.sets || []).map((set) => ({
           weight: set.bodyweight ? "" : formatNumber(kgToDisplay(set.weight_kg, unit), 2),
           reps: String(set.reps),
@@ -198,20 +202,22 @@ export const StrengthForm = ({ mode, initialWorkout, onSaved }: StrengthFormProp
   const menuFiltered = useMemo(() => {
     const q = menuSearch.trim();
     if (!q) return allExerciseDefs;
-    return allExerciseDefs.filter((e) => e.name.includes(q));
+    return allExerciseDefs.filter((e) => exerciseSearchMatch(e.name, q));
   }, [allExerciseDefs, menuSearch]);
 
   const addExercise = (name: string) => {
     const trimmed = name.trim();
     if (!trimmed) return;
-    const defs = exerciseDefaults(trimmed, dict);
+    const normalized = normalizeExerciseName(trimmed);
+    if (normalized !== trimmed) toast.info(`已识别「${trimmed}」→「${normalized}」`);
+    const defs = exerciseDefaults(normalized, dict);
     setExercises((prev) => [
       ...prev,
       {
         id: createId(),
-        name: trimmed,
+        name: normalized,
         done: false,
-        body_part: resolveBodyPart(trimmed, dict),
+        body_part: resolveBodyPart(normalized, dict),
         sets: [
           {
             weight: "",
@@ -315,7 +321,7 @@ export const StrengthForm = ({ mode, initialWorkout, onSaved }: StrengthFormProp
         });
 
         return {
-          name: exercise.name.trim(),
+          name: normalizeExerciseName(exercise.name.trim()),
           done: exercise.done,
           body_part: exercise.body_part,
           input_unit: actionUnit,
@@ -461,7 +467,7 @@ export const StrengthForm = ({ mode, initialWorkout, onSaved }: StrengthFormProp
               onClick={() => addExercise(name)}
               className="px-3 py-1.5 rounded-md bg-fit-surface border border-fit-border text-xs font-semibold text-fit-muted hover:text-fit-foreground transition-smooth"
             >
-              {name}
+              {displayName(name)}
             </button>
           ))}
           <Popover open={menuOpen} onOpenChange={setMenuOpen}>
@@ -496,7 +502,7 @@ export const StrengthForm = ({ mode, initialWorkout, onSaved }: StrengthFormProp
                     }}
                     className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-left text-sm text-fit-foreground hover:bg-fit-surface transition-smooth"
                   >
-                    <span className="flex-1 truncate">{def.name}</span>
+                    <span className="flex-1 truncate">{displayName(def.name)}</span>
                     {def.bodyweight_default && <span className="text-[10px] font-bold text-fit-accent shrink-0">BW</span>}
                     <span className="text-[10px] text-fit-muted shrink-0">{BODY_PART_LABELS[def.body_part]}</span>
                   </button>
@@ -575,6 +581,10 @@ export const StrengthForm = ({ mode, initialWorkout, onSaved }: StrengthFormProp
                 <Trash2 className="w-4 h-4" />
               </button>
             </div>
+
+            {displayName(exercise.name) !== exercise.name && (
+              <p className="text-[11px] text-fit-muted">{displayName(exercise.name)}</p>
+            )}
 
             <div className="flex items-center gap-2">
               <select
