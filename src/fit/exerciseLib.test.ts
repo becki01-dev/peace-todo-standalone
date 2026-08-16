@@ -162,13 +162,14 @@ describe("displayName", () => {
     expect(displayName("高位下拉")).toBe("高位下拉 (Lat Pulldown)");
     expect(displayName("器械推胸")).toBe("器械推胸 (Chest Press)");
     expect(displayName("哈克深蹲")).toBe("哈克深蹲 (Hack Squat)");
-    expect(displayName("曲臂下弯")).toBe("曲臂下弯 (Dip)");
+    expect(displayName("双杠臂屈伸")).toBe("双杠臂屈伸 (Triceps Dip)");
   });
 
   it("中文变体 → 变体 (规范英文名)", () => {
     expect(displayName("俄罗斯卷腹")).toBe("俄罗斯卷腹 (Russian Twist)");
     expect(displayName("russian crunch")).toBe("俄罗斯转体 (russian crunch)");
     expect(displayName("卷腹提腿")).toBe("卷腹提腿 (Leg Raise)");
+    expect(displayName("曲臂下弯")).toBe("曲臂下弯 (Triceps Dip)");
     expect(displayName("back bend")).toBe("背伸展 (back bend)");
   });
 

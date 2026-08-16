@@ -232,8 +232,7 @@ export const EXERCISE_EN: Record<string, string> = {
   锤式弯举: "Hammer Curl",
   绳索下压: "Tricep Pushdown",
   臂屈伸: "Tricep Extension",
-  双杠臂屈伸: "Dip",
-  曲臂下弯: "Dip", // 用户自定义名(臂屈伸/双杠类器械),仅显示层英文
+  双杠臂屈伸: "Triceps Dip",
   俄罗斯转体: "Russian Twist",
   背伸展: "Back Extension",
   举腿: "Leg Raise",
@@ -243,10 +242,12 @@ export const EXERCISE_EN: Record<string, string> = {
 /**
  * 中文变体(用户自定义写法)→ 中文规范名,仅用于显示层英文补充。
  * 数据不动(用户保留自己的叫法),displayName 借此查出规范英文名,如「俄罗斯卷腹」→「俄罗斯卷腹 (Russian Twist)」。
+ * 注:曲臂下弯的历史数据已由迁移 20260816140000_merge_custom_dip_names.sql 并入双杠臂屈伸,此处保留条目仅为再输入时的显示兜底。
  */
 export const EXERCISE_ZH_ALIASES: Record<string, string> = {
   "俄罗斯卷腹": "俄罗斯转体",
   "卷腹提腿": "举腿",
+  "曲臂下弯": "双杠臂屈伸",
 };
 
 /** 中文规范名 → 该动作的全部英文变体(预设 en + 别名表反查),搜索匹配用 */
