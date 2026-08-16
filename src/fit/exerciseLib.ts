@@ -233,6 +233,7 @@ export const EXERCISE_EN: Record<string, string> = {
   绳索下压: "Tricep Pushdown",
   臂屈伸: "Tricep Extension",
   双杠臂屈伸: "Dip",
+  曲臂下弯: "Dip", // 用户自定义名(臂屈伸/双杠类器械),仅显示层英文
   俄罗斯转体: "Russian Twist",
   背伸展: "Back Extension",
   举腿: "Leg Raise",

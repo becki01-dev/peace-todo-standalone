@@ -162,6 +162,7 @@ describe("displayName", () => {
     expect(displayName("高位下拉")).toBe("高位下拉 (Lat Pulldown)");
     expect(displayName("器械推胸")).toBe("器械推胸 (Chest Press)");
     expect(displayName("哈克深蹲")).toBe("哈克深蹲 (Hack Squat)");
+    expect(displayName("曲臂下弯")).toBe("曲臂下弯 (Dip)");
   });
 
   it("中文变体 → 变体 (规范英文名)", () => {
