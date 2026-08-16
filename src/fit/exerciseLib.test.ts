@@ -154,11 +154,14 @@ describe("displayName", () => {
     expect(displayName("back squat")).toBe("深蹲 (back squat)");
     expect(displayName("BENCH")).toBe("卧推 (BENCH)");
     expect(displayName("leg curl")).toBe("腿弯举 (leg curl)");
+    expect(displayName("Chest Press")).toBe("器械推胸 (Chest Press)");
   });
 
   it("非预设规范名 → 中文 (EXERCISE_EN 英文名)", () => {
     expect(displayName("腿弯举")).toBe("腿弯举 (Leg Curl)");
     expect(displayName("高位下拉")).toBe("高位下拉 (Lat Pulldown)");
+    expect(displayName("器械推胸")).toBe("器械推胸 (Chest Press)");
+    expect(displayName("哈克深蹲")).toBe("哈克深蹲 (Hack Squat)");
   });
 
   it("中文变体 → 变体 (规范英文名)", () => {
@@ -180,6 +183,10 @@ describe("normalizeExerciseName", () => {
     expect(normalizeExerciseName("Back Squat")).toBe("深蹲");
     expect(normalizeExerciseName("SQUAT")).toBe("深蹲");
     expect(normalizeExerciseName("chin ups")).toBe("引体向上");
+    expect(normalizeExerciseName("chest press")).toBe("器械推胸");
+    expect(normalizeExerciseName("Hack Squat")).toBe("哈克深蹲");
+    expect(normalizeExerciseName("rear delt")).toBe("反向飞鸟");
+    expect(normalizeExerciseName("Seated Calf")).toBe("提踵");
     expect(normalizeExerciseName(" 卧推 ")).toBe("卧推");
   });
 

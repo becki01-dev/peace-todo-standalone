@@ -45,7 +45,8 @@ export const PRESET_DEFS: ExercisePreset[] = [
 
 /**
  * 英文别名/变体(键全小写)→ 中文规范名。
- * 必须与 supabase/migrations/20260815120000_normalize_exercise_names.sql 的 alias_map 保持同一集合,
+ * 必须与 supabase/migrations/20260815120000_normalize_exercise_names.sql、
+ * supabase/migrations/20260816120000_map_remaining_exercise_names.sql 的 alias_map 保持同一集合,
  * 增改需两端同步(完整性由 exerciseLib.test.ts 断言守护)。
  * 刻意排除易误伤的词:romanian deadlift/rdl、裸 "press" 等含糊名。
  */
@@ -132,10 +133,12 @@ export const EXERCISE_ALIASES: Record<string, string> = {
   "leg press": "腿举",
   "leg presses": "腿举",
   "sled press": "腿举",
+  "hack squat": "哈克深蹲",
   "calf raise": "提踵",
   "calf raises": "提踵",
   "standing calf raise": "提踵",
   "seated calf raise": "提踵",
+  "seated calf": "提踵",
   "lat pulldown": "高位下拉",
   "lat pulldowns": "高位下拉",
   "lat pull-down": "高位下拉",
@@ -150,6 +153,7 @@ export const EXERCISE_ALIASES: Record<string, string> = {
   "reverse flies": "反向飞鸟",
   "rear delt fly": "反向飞鸟",
   "rear delt raise": "反向飞鸟",
+  "rear delt": "反向飞鸟",
   "incline bench press": "上斜卧推",
   "incline press": "上斜卧推",
   "incline bench": "上斜卧推",
@@ -157,6 +161,7 @@ export const EXERCISE_ALIASES: Record<string, string> = {
   "dumbbell bench press": "哑铃卧推",
   "db press": "哑铃卧推",
   "db bench press": "哑铃卧推",
+  "chest press": "器械推胸",
   "chest fly": "飞鸟",
   "chest flies": "飞鸟",
   "dumbbell fly": "飞鸟",
@@ -212,12 +217,14 @@ export const EXERCISE_EN: Record<string, string> = {
   腿弯举: "Leg Curl",
   腿屈伸: "Leg Extension",
   腿举: "Leg Press",
+  哈克深蹲: "Hack Squat",
   提踵: "Calf Raise",
   高位下拉: "Lat Pulldown",
   坐姿划船: "Seated Row",
   反向飞鸟: "Reverse Fly",
   上斜卧推: "Incline Bench Press",
   哑铃卧推: "Dumbbell Press",
+  器械推胸: "Chest Press",
   飞鸟: "Chest Fly",
   侧平举: "Lateral Raise",
   前平举: "Front Raise",
