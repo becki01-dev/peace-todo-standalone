@@ -60,6 +60,7 @@ export const EXERCISE_ALIASES: Record<string, string> = {
   "air squat": "深蹲",
   deadlift: "硬拉",
   deadlifts: "硬拉",
+  "dead lift": "硬拉",
   "conventional deadlift": "硬拉",
   "sumo deadlift": "硬拉",
   "bench press": "卧推",
@@ -99,12 +100,15 @@ export const EXERCISE_ALIASES: Record<string, string> = {
   "biceps curl": "二头弯举",
   "bicep curls": "二头弯举",
   "biceps curls": "二头弯举",
+  "arm curl": "二头弯举",
   curl: "二头弯举",
   curls: "二头弯举",
   "barbell curl": "二头弯举",
   "dumbbell curl": "二头弯举",
   crunch: "卷腹",
   crunches: "卷腹",
+  abdominal: "卷腹",
+  "abdominal crunch": "卷腹",
   "sit-up": "卷腹",
   "sit up": "卷腹",
   situp: "卷腹",
@@ -154,6 +158,7 @@ export const EXERCISE_ALIASES: Record<string, string> = {
   "rear delt fly": "反向飞鸟",
   "rear delt raise": "反向飞鸟",
   "rear delt": "反向飞鸟",
+  "fly delt": "反向飞鸟",
   "incline bench press": "上斜卧推",
   "incline press": "上斜卧推",
   "incline bench": "上斜卧推",
@@ -162,6 +167,7 @@ export const EXERCISE_ALIASES: Record<string, string> = {
   "db press": "哑铃卧推",
   "db bench press": "哑铃卧推",
   "chest press": "器械推胸",
+  "chess press": "器械推胸",
   "chest fly": "飞鸟",
   "chest flies": "飞鸟",
   "dumbbell fly": "飞鸟",
@@ -189,6 +195,8 @@ export const EXERCISE_ALIASES: Record<string, string> = {
   "tricep extension": "臂屈伸",
   "triceps extension": "臂屈伸",
   "tricep extensions": "臂屈伸",
+  "arm extension": "臂屈伸",
+  "triceps press": "臂屈伸",
   "overhead tricep extension": "臂屈伸",
   "skull crusher": "臂屈伸",
   skullcrusher: "臂屈伸",
@@ -210,6 +218,12 @@ export const EXERCISE_ALIASES: Record<string, string> = {
   burpees: "波比跳",
   "back bend": "背伸展",
   "back bends": "背伸展",
+  "back extension": "背伸展",
+  "back extensions": "背伸展",
+  "hip abduction": "髋外展",
+  "hip abductions": "髋外展",
+  "hip adduction": "髋内收",
+  "hip adductions": "髋内收",
 };
 
 /** 非预设动作的规范名 → 显示用英文名(预设动作的英文名在 PRESET_DEFS.en;两端需与迁移 SQL 一致) */
@@ -238,6 +252,11 @@ export const EXERCISE_EN: Record<string, string> = {
   举腿: "Leg Raise",
   前臂支撑举腿: "Forearm-supported Leg Raise",
   波比跳: "Burpee",
+  髋外展: "Hip Abduction",
+  髋内收: "Hip Adduction",
+  // 非动作的显示兜底(legacy 入口/早期记录,不参与别名反查)
+  综合力量训练: "General Strength Training",
+  瑜伽: "Yoga",
 };
 
 /**
@@ -250,6 +269,9 @@ export const EXERCISE_ZH_ALIASES: Record<string, string> = {
   "俄罗斯卷腹": "俄罗斯转体",
   "卷腹提腿": "前臂支撑举腿",
   "曲臂下弯": "双杠臂屈伸",
+  "提腿卷腹": "前臂支撑举腿",
+  "弯臂曲伸": "双杠臂屈伸",
+  "箭步蹲": "弓步",
 };
 
 /** 中文规范名 → 该动作的全部英文变体(预设 en + 别名表反查),搜索匹配用 */

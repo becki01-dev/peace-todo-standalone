@@ -172,6 +172,26 @@ describe("displayName", () => {
     expect(displayName("卷腹提腿")).toBe("卷腹提腿 (Forearm-supported Leg Raise)");
     expect(displayName("曲臂下弯")).toBe("曲臂下弯 (Triceps Dip)");
     expect(displayName("back bend")).toBe("背伸展 (back bend)");
+    expect(displayName("提腿卷腹")).toBe("提腿卷腹 (Forearm-supported Leg Raise)");
+    expect(displayName("弯臂曲伸")).toBe("弯臂曲伸 (Triceps Dip)");
+    expect(displayName("箭步蹲")).toBe("箭步蹲 (Lunge)");
+  });
+
+  it("审计收尾新增:髋部/拼写变体 → 中文 (原文,保留大小写)", () => {
+    expect(displayName("Hip abduction")).toBe("髋外展 (Hip abduction)");
+    expect(displayName("Hip adduction")).toBe("髋内收 (Hip adduction)");
+    expect(displayName("髋外展")).toBe("髋外展 (Hip Abduction)");
+    expect(displayName("髋内收")).toBe("髋内收 (Hip Adduction)");
+    expect(displayName("Chess press")).toBe("器械推胸 (Chess press)");
+    expect(displayName("Dead lift")).toBe("硬拉 (Dead lift)");
+    expect(displayName("Fly Delt")).toBe("反向飞鸟 (Fly Delt)");
+    expect(displayName("Arm Curl")).toBe("二头弯举 (Arm Curl)");
+    expect(displayName("Abdominal crunch")).toBe("卷腹 (Abdominal crunch)");
+    expect(displayName("Back extension")).toBe("背伸展 (Back extension)");
+    expect(displayName("Arm extension")).toBe("臂屈伸 (Arm extension)");
+    expect(displayName("Triceps press")).toBe("臂屈伸 (Triceps press)");
+    expect(displayName("综合力量训练")).toBe("综合力量训练 (General Strength Training)");
+    expect(displayName("瑜伽")).toBe("瑜伽 (Yoga)");
   });
 
   it("无映射 → 原样返回(含空串)", () => {
@@ -190,6 +210,9 @@ describe("normalizeExerciseName", () => {
     expect(normalizeExerciseName("Hack Squat")).toBe("哈克深蹲");
     expect(normalizeExerciseName("rear delt")).toBe("反向飞鸟");
     expect(normalizeExerciseName("Seated Calf")).toBe("提踵");
+    expect(normalizeExerciseName("Hip Abduction")).toBe("髋外展");
+    expect(normalizeExerciseName("dead lift")).toBe("硬拉");
+    expect(normalizeExerciseName("Abdominal Crunch")).toBe("卷腹");
     expect(normalizeExerciseName(" 卧推 ")).toBe("卧推");
   });
 
@@ -210,6 +233,9 @@ describe("exerciseSearchMatch", () => {
     expect(exerciseSearchMatch("二头弯举", "弯举")).toBe(true);
     expect(exerciseSearchMatch("腿弯举", "leg curl")).toBe(true);
     expect(exerciseSearchMatch("腿弯举", "腿弯举")).toBe(true);
+    expect(exerciseSearchMatch("髋外展", "hip")).toBe(true);
+    expect(exerciseSearchMatch("髋外展", "髋")).toBe(true);
+    expect(exerciseSearchMatch("前臂支撑举腿", "提腿")).toBe(false); // 变体不做搜索匹配
   });
 
   it("不命中与空查询", () => {
