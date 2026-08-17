@@ -20,6 +20,7 @@ insert into alias_map (en, zh, part) values
   ('abdominal', '卷腹', 'core'),
   ('abdominal crunch', '卷腹', 'core'),
   ('back extension', '背伸展', 'back'),
+  ('back and side lift', '背伸展', 'back'),
   ('arm extension', '臂屈伸', 'arms'),
   ('triceps press', '臂屈伸', 'arms');
 

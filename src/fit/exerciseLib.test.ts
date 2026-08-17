@@ -190,6 +190,7 @@ describe("displayName", () => {
     expect(displayName("Back extension")).toBe("背伸展 (Back extension)");
     expect(displayName("Arm extension")).toBe("臂屈伸 (Arm extension)");
     expect(displayName("Triceps press")).toBe("臂屈伸 (Triceps press)");
+    expect(displayName("back and side lift")).toBe("背伸展 (back and side lift)");
     expect(displayName("综合力量训练")).toBe("综合力量训练 (General Strength Training)");
     expect(displayName("瑜伽")).toBe("瑜伽 (Yoga)");
   });

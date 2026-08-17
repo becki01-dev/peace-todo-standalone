@@ -220,6 +220,7 @@ export const EXERCISE_ALIASES: Record<string, string> = {
   "back bends": "背伸展",
   "back extension": "背伸展",
   "back extensions": "背伸展",
+  "back and side lift": "背伸展",
   "hip abduction": "髋外展",
   "hip abductions": "髋外展",
   "hip adduction": "髋内收",
