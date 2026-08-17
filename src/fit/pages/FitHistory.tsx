@@ -6,7 +6,7 @@ import { Workout } from "../types";
 import { WorkoutCard } from "../WorkoutCard";
 import { SummaryCard } from "../SummaryCard";
 import { FitEmptyState } from "../EmptyState";
-import { FitPr } from "./FitPr";
+import FitPr from "./FitPr";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
