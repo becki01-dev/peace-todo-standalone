@@ -6,7 +6,9 @@ import { Workout } from "../types";
 import { WorkoutCard } from "../WorkoutCard";
 import { SummaryCard } from "../SummaryCard";
 import { FitEmptyState } from "../EmptyState";
+import { FitPr } from "./FitPr";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 interface OutletContext {
   reloadKey: number;
@@ -20,6 +22,7 @@ const FitHistory = () => {
   const { reloadKey, onEditWorkout, onCopyWorkout } = useOutletContext<OutletContext>();  // 添加 onCopyWorkout
   const [workouts, setWorkouts] = useState<Workout[]>([]);
   const [loading, setLoading] = useState(true);
+  const [tab, setTab] = useState<"history" | "pr">("history");
 
   const load = async () => {
     if (!user) return;
@@ -69,6 +72,27 @@ const FitHistory = () => {
 
   return (
     <div className="space-y-5">
+      <div className="flex gap-1 p-1 bg-fit-card rounded-lg border border-fit-border" role="tablist" aria-label="历史页面">
+        {([["history", "历史记录"], ["pr", "动作纪录"]] as const).map(([key, label]) => (
+          <button
+            key={key}
+            onClick={() => setTab(key)}
+            role="tab"
+            aria-selected={tab === key}
+            className={cn(
+              "flex-1 py-1.5 text-sm font-medium rounded-md transition-smooth",
+              tab === key ? "bg-fit-accent text-fit-accent-foreground" : "text-fit-muted",
+            )}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {tab === "pr" ? (
+        <FitPr workouts={workouts} loading={loading} />
+      ) : (
+      <>
       <SummaryCard workouts={workouts} />
 
       <div>
@@ -103,6 +127,8 @@ const FitHistory = () => {
           </div>
         )}
       </div>
+      </>
+      )}
     </div>
   );
 };
