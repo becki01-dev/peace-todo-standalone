@@ -8,6 +8,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { usePreferences } from "./usePreferences";
+import { useExerciseDict } from "./useExerciseDict";
 import { formatNumber, kgToDisplay, weightInputToKg } from "./units";
 import {
   BODY_PARTS,
@@ -120,6 +121,7 @@ function workoutToExercises(workout: Workout | undefined, defaultUnit: WeightUni
 export const StrengthForm = ({ mode, initialWorkout, onSaved }: StrengthFormProps) => {
   const { user } = useAuth();
   const { prefs } = usePreferences();
+  const { dict: exDict } = useExerciseDict(); // 全局映射字典(DB exercise_dictionary)
   const [workoutDate, setWorkoutDate] = useState(() =>
     mode === "edit" && initialWorkout ? localYmd(initialWorkout.date) : todayYmd(),
   );
@@ -202,13 +204,13 @@ export const StrengthForm = ({ mode, initialWorkout, onSaved }: StrengthFormProp
   const menuFiltered = useMemo(() => {
     const q = menuSearch.trim();
     if (!q) return allExerciseDefs;
-    return allExerciseDefs.filter((e) => exerciseSearchMatch(e.name, q));
-  }, [allExerciseDefs, menuSearch]);
+        return allExerciseDefs.filter((e) => exerciseSearchMatch(e.name, q, exDict));
+  }, [allExerciseDefs, menuSearch, exDict]);
 
   const addExercise = (name: string) => {
     const trimmed = name.trim();
     if (!trimmed) return;
-    const normalized = normalizeExerciseName(trimmed);
+        const normalized = normalizeExerciseName(trimmed, exDict);
     if (normalized !== trimmed) toast.info(`已识别「${trimmed}」→「${normalized}」`);
     const defs = exerciseDefaults(normalized, dict);
     setExercises((prev) => [
@@ -321,7 +323,7 @@ export const StrengthForm = ({ mode, initialWorkout, onSaved }: StrengthFormProp
         });
 
         return {
-          name: normalizeExerciseName(exercise.name.trim()),
+                    name: normalizeExerciseName(exercise.name.trim(), exDict),
           done: exercise.done,
           body_part: exercise.body_part,
           input_unit: actionUnit,
@@ -467,7 +469,7 @@ export const StrengthForm = ({ mode, initialWorkout, onSaved }: StrengthFormProp
               onClick={() => addExercise(name)}
               className="px-3 py-1.5 rounded-md bg-fit-surface border border-fit-border text-xs font-semibold text-fit-muted hover:text-fit-foreground transition-smooth"
             >
-              {displayName(name)}
+                            {displayName(name, exDict)}
             </button>
           ))}
           <Popover open={menuOpen} onOpenChange={setMenuOpen}>
@@ -502,7 +504,7 @@ export const StrengthForm = ({ mode, initialWorkout, onSaved }: StrengthFormProp
                     }}
                     className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-left text-sm text-fit-foreground hover:bg-fit-surface transition-smooth"
                   >
-                    <span className="flex-1 truncate">{displayName(def.name)}</span>
+                    <span className="flex-1 truncate">{displayName(def.name, exDict)}</span>
                     {def.bodyweight_default && <span className="text-[10px] font-bold text-fit-accent shrink-0">BW</span>}
                     <span className="text-[10px] text-fit-muted shrink-0">{BODY_PART_LABELS[def.body_part]}</span>
                   </button>
@@ -582,8 +584,8 @@ export const StrengthForm = ({ mode, initialWorkout, onSaved }: StrengthFormProp
               </button>
             </div>
 
-            {displayName(exercise.name) !== exercise.name && (
-              <p className="text-[11px] text-fit-muted">{displayName(exercise.name)}</p>
+            {displayName(exercise.name, exDict) !== exercise.name && (
+              <p className="text-[11px] text-fit-muted">{displayName(exercise.name, exDict)}</p>
             )}
 
             <div className="flex items-center gap-2">

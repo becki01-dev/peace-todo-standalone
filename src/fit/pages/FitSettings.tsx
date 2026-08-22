@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Download, LogOut, Ruler, Dumbbell, Waves, Scale, Trash2 } from "lucide-react";
+import { Download, LogOut, Ruler, Dumbbell, Waves, Scale, Trash2, Languages } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatNumber, kgToDisplay, weightInputToKg } from "../units";
 import { buildExportPayload, downloadJson } from "../exportData";
@@ -160,6 +160,20 @@ const FitSettings = () => {
         <p className="text-xs text-fit-muted mt-3 px-1">
           数据始终以公制存储,仅改变历史列表的显示单位。
         </p>
+      </section>
+
+      <section>
+        <h2 className="text-xs font-semibold text-fit-muted uppercase tracking-wider mb-3 px-1">动作字典</h2>
+        <Link
+          to="/fit/exercises"
+          className="flex items-center gap-3 p-4 rounded-xl bg-fit-card border border-fit-border hover:border-fit-accent/40 transition-smooth"
+        >
+          <Languages className="w-4 h-4 text-fit-muted" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-fit-foreground">管理动作字典</p>
+            <p className="text-xs text-fit-muted">英文别名 / 中文显示 / 中文变体映射,增删改即时生效(仅管理员可编辑)</p>
+          </div>
+        </Link>
       </section>
 
       <section>

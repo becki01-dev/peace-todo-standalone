@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Workout } from "../types";
 import { usePreferences } from "../usePreferences";
+import { useExerciseDict } from "../useExerciseDict";
 import { formatNumber, kgToDisplay } from "../units";
 import {
   BODY_PART_LABELS,
@@ -34,6 +35,7 @@ interface Props {
 const FitPr = ({ workouts, loading }: Props) => {
   const { user } = useAuth();
   const { prefs } = usePreferences();
+  const { dict } = useExerciseDict(); // 全局映射字典(DB exercise_dictionary)
   const [weightHistory, setWeightHistory] = useState<BodyWeightRecord[]>([]);
   const [exerciseDict, setExerciseDict] = useState<UserExercise[]>([]);
   const [search, setSearch] = useState("");
@@ -70,8 +72,8 @@ const FitPr = ({ workouts, loading }: Props) => {
   // 候选:搜索词时按匹配过滤全部名字;否则按出现频率取前 30
   const candidates = useMemo(() => {
     const q = search.trim();
-    return q ? allNames.filter((n) => exerciseSearchMatch(n, q)) : frequentExerciseNames(workouts, 30);
-  }, [allNames, workouts, search]);
+    return q ? allNames.filter((n) => exerciseSearchMatch(n, q, dict)) : frequentExerciseNames(workouts, 30);
+  }, [allNames, workouts, search, dict]);
 
   const active = candidates.includes(selected ?? "") ? selected : candidates[0] ?? null;
 
@@ -137,7 +139,7 @@ const FitPr = ({ workouts, loading }: Props) => {
         <>
           <div className="p-4 rounded-xl bg-fit-card border border-fit-border">
             <div className="flex items-center justify-between mb-2">
-              <h3 className="font-semibold">{displayName(active)}</h3>
+                            <h3 className="font-semibold">{displayName(active, dict)}</h3>
               <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-fit-accent/10 text-fit-accent">
                 {BODY_PART_LABELS[resolveBodyPart(active, exerciseDict)]}
               </span>
@@ -172,7 +174,7 @@ const FitPr = ({ workouts, loading }: Props) => {
                     values: pr.series.map((p) => kgToDisplay(p.est1rm, prefs.weight_unit)),
                   },
                 ]}
-                ariaLabel={`${displayName(active)} 1RM 趋势`}
+                                ariaLabel={`${displayName(active, dict)} 1RM 趋势`}
                 xLabels={pr.series.map((p) => shortDate(p.date))}
               />
             </div>

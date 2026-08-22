@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { PreferencesProvider } from "./usePreferences";
+import { ExerciseDictProvider } from "./useExerciseDict";
 import { BottomNav } from "./BottomNav";
 import { WorkoutDialog } from "./WorkoutDialog";
 import { ChevronLeft, Flame } from "lucide-react";
@@ -11,6 +12,7 @@ const TITLES: Record<string, string> = {
   "/fit": "历史记录",
   "/fit/stats": "数据统计",
   "/fit/settings": "个人设置",
+  "/fit/exercises": "动作字典",
   "/fit/strength/session": "力量训练",
 };
 
@@ -122,7 +124,9 @@ const FitLayoutInner = () => {
 
 const FitLayout = () => (
   <PreferencesProvider>
-    <FitLayoutInner />
+    <ExerciseDictProvider>
+      <FitLayoutInner />
+    </ExerciseDictProvider>
   </PreferencesProvider>
 );
 

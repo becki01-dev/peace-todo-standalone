@@ -1,6 +1,7 @@
 import { Footprints, Waves, Dumbbell, Trash2, Pencil, Target, Copy } from "lucide-react";
 import { Workout, RunningData, SwimmingData, StrengthData, SwimmingMultiSetData, SwimmingSetData, DistanceUnit, WeightUnit, PoolUnit } from "./types";
 import { usePreferences } from "./usePreferences";
+import { useExerciseDict } from "./useExerciseDict";
 import { displayName } from "./exerciseLib";
 import {
   metersToDisplay,
@@ -31,6 +32,7 @@ export const WorkoutCard = ({ workout, onDelete, onEdit, onCopy }: {
   onCopy?: (workout: Workout) => void;
 }) => {
   const { prefs } = usePreferences();
+  const { dict } = useExerciseDict(); // 全局映射字典(DB exercise_dictionary)
   const Icon = ICONS[workout.type];
   const date = new Date(workout.date);
 
@@ -105,10 +107,10 @@ export const WorkoutCard = ({ workout, onDelete, onEdit, onCopy }: {
   } else {
     const d = workout.data as StrengthData;
     const isSession = !!d.session && Array.isArray(d.exercises) && d.exercises.length > 0;
-    primary = isSession ? "力量训练" : displayName(d.exercise);
+        primary = isSession ? "力量训练" : displayName(d.exercise, dict);
     if (isSession) {
       const doneCount = d.exercises?.filter((e) => e.done).length ?? 0;
-      const names = d.exercises?.slice(0, 2).map((e) => displayName(e.name)).join(" · ") ?? "";
+            const names = d.exercises?.slice(0, 2).map((e) => displayName(e.name, dict)).join(" · ") ?? "";
       const more = (d.exercises?.length ?? 0) > 2 ? ` +${(d.exercises?.length ?? 0) - 2}` : "";
       const durText = d.duration_seconds ? ` · ${formatDuration(d.duration_seconds)}` : "";
       secondary = `${doneCount}/${d.exercises?.length ?? 0} 动作完成 · ${d.sets} 组${durText} · ${names}${more}`;

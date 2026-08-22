@@ -4,6 +4,8 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import { PreferencesProvider } from "../usePreferences";
+import { ExerciseDictProvider } from "../useExerciseDict";
+import { FIXTURE_DICT_ROWS } from "../testDict.fixture";
 import { supabase } from "@/integrations/supabase/client";
 import FitPr from "./FitPr";
 import type { Workout } from "../types";
@@ -59,7 +61,9 @@ function setupClient(
         ? buildChain({ data: weightHistory, error: null })
         : table === "user_exercises"
           ? buildChain({ data: exerciseDict, error: null })
-          : buildChain({ data: workouts, error: null }),
+          : table === "exercise_dictionary"
+            ? buildChain({ data: FIXTURE_DICT_ROWS, error: null })
+            : buildChain({ data: workouts, error: null }),
   );
 }
 
@@ -90,9 +94,11 @@ const renderPr = (workouts: Workout[], opts: { weightHistory?: BodyWeightRecord[
   render(
     <AuthProvider>
       <PreferencesProvider>
-        <MemoryRouter>
-          <FitPr workouts={workouts} loading={false} />
-        </MemoryRouter>
+        <ExerciseDictProvider>
+          <MemoryRouter>
+            <FitPr workouts={workouts} loading={false} />
+          </MemoryRouter>
+        </ExerciseDictProvider>
       </PreferencesProvider>
     </AuthProvider>,
   );

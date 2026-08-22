@@ -6,6 +6,8 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Outlet, Route, Routes } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import { PreferencesProvider } from "./usePreferences";
+import { ExerciseDictProvider } from "./useExerciseDict";
+import { FIXTURE_DICT_ROWS } from "./testDict.fixture";
 import { Toaster } from "@/components/ui/sonner";
 import { supabase } from "@/integrations/supabase/client";
 import FitStrengthSession from "./pages/FitStrengthSession";
@@ -65,7 +67,9 @@ function setupClient(workoutsResult: unknown, exResult = { data: [], error: null
       ? buildChain({ data: null, error: null })
       : table === "user_exercises"
         ? exChain
-        : chain,
+        : table === "exercise_dictionary"
+          ? buildChain({ data: FIXTURE_DICT_ROWS, error: null })
+          : chain,
   );
   return Object.assign(chain, { exChain });
 }
@@ -116,13 +120,15 @@ const renderSession = (path = "/fit/strength/session") => {
     <MemoryRouter initialEntries={[path]}>
       <AuthProvider>
         <PreferencesProvider>
-          <Toaster />
-          <Routes>
-            <Route path="/fit" element={<TestLayout context={context} />}>
-              <Route index element={<div>HISTORY_PLACEHOLDER</div>} />
-              <Route path="strength/session" element={<FitStrengthSession />} />
-            </Route>
-          </Routes>
+          <ExerciseDictProvider>
+            <Toaster />
+            <Routes>
+              <Route path="/fit" element={<TestLayout context={context} />}>
+                <Route index element={<div>HISTORY_PLACEHOLDER</div>} />
+                <Route path="strength/session" element={<FitStrengthSession />} />
+              </Route>
+            </Routes>
+          </ExerciseDictProvider>
         </PreferencesProvider>
       </AuthProvider>
     </MemoryRouter>,
@@ -448,6 +454,8 @@ describe("StrengthForm (力量训练统一表单)", () => {
     const chain = setupClient({ data: null, error: null });
     renderSession();
 
+    // 先等快捷按钮渲染(顺带 flush 全局字典加载,归一化依赖 DB 字典)
+    await screen.findByRole("button", { name: /深蹲/ });
     fireEvent.change(screen.getByPlaceholderText("自定义动作名称"), { target: { value: "squat" } });
     fireEvent.click(screen.getByRole("button", { name: /添加动作/ }));
 
@@ -504,6 +512,7 @@ describe("StrengthForm (力量训练统一表单)", () => {
     setupClient({ data: null, error: null });
     renderSession();
 
+    await screen.findByRole("button", { name: /深蹲/ });
     fireEvent.change(screen.getByPlaceholderText("自定义动作名称"), { target: { value: "squat machine" } });
     fireEvent.click(screen.getByRole("button", { name: /添加动作/ }));
 
