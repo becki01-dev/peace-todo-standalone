@@ -19,17 +19,21 @@ comment on column public.exercise_dictionary.value is '值(中文规范名 / 显
 alter table public.exercise_dictionary enable row level security;
 
 -- 读:任何登录用户(显示/搜索/归一化)
+drop policy if exists "exercise_dictionary_select" on public.exercise_dictionary;
 create policy "exercise_dictionary_select" on public.exercise_dictionary
   for select to authenticated using (true);
 
 -- 写:仅管理员邮箱(与 src/fit/exerciseLib.ts 的 EXERCISE_DICT_ADMIN_EMAIL 一致,改需两端同步)
+drop policy if exists "exercise_dictionary_admin_insert" on public.exercise_dictionary;
 create policy "exercise_dictionary_admin_insert" on public.exercise_dictionary
   for insert to authenticated
   with check (lower(coalesce(auth.jwt() ->> 'email', '')) = 'becki01@gmail.com');
+drop policy if exists "exercise_dictionary_admin_update" on public.exercise_dictionary;
 create policy "exercise_dictionary_admin_update" on public.exercise_dictionary
   for update to authenticated
   using (lower(coalesce(auth.jwt() ->> 'email', '')) = 'becki01@gmail.com')
   with check (lower(coalesce(auth.jwt() ->> 'email', '')) = 'becki01@gmail.com');
+drop policy if exists "exercise_dictionary_admin_delete" on public.exercise_dictionary;
 create policy "exercise_dictionary_admin_delete" on public.exercise_dictionary
   for delete to authenticated
   using (lower(coalesce(auth.jwt() ->> 'email', '')) = 'becki01@gmail.com');
