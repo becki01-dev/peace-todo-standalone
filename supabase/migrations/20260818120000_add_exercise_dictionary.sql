@@ -242,5 +242,5 @@ insert into public.exercise_dictionary (kind, key, value) values
   ('zh_alias', '曲臂下弯', '双杠臂屈伸'),
   ('zh_alias', '提腿卷腹', '前臂支撑举腿'),
   ('zh_alias', '弯臂曲伸', '双杠臂屈伸'),
-  ('zh_alias', '箭步蹲', '弓步'),
+  ('zh_alias', '箭步蹲', '弓步')
 on conflict (kind, key) do nothing;
