@@ -31,3 +31,6 @@ handoff/
 *.njsproj
 *.sln
 *.sw?
+
+# 备份仓临时克隆(勿提交)
+.backup-tmp/
