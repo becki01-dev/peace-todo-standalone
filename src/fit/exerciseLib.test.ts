@@ -10,6 +10,7 @@ import {
   exerciseDefaults,
   exerciseSearchMatch,
   frequentExerciseNames,
+  lastUsedByExercise,
   normalizeExerciseName,
   resolveBodyPart,
   type ExerciseDictEntry,
@@ -292,5 +293,40 @@ describe("aliasesFor", () => {
     expect(aliasesFor("臀推", FIXTURE_DICT)).toContain("hip thrust");
     expect(aliasesFor("罗马尼亚硬拉", FIXTURE_DICT)).toContain("romanian deadlift");
     expect(aliasesFor("Squat", FIXTURE_DICT)).toHaveLength(0); // 非规范名不反查
+  });
+});
+
+describe("lastUsedByExercise", () => {
+  it("会话/legacy 两种格式都支持,保留最近一次日期", () => {
+    const early = workout({
+      type: "strength",
+      date: "2026-08-01T10:00:00Z",
+      data: {
+        session: true,
+        exercise: "",
+        weight_kg: 0,
+        sets: 1,
+        reps: 1,
+        exercises: [{ name: "臀推", done: false, sets: [] }],
+      },
+    });
+    const late = workout({
+      type: "strength",
+      date: "2026-08-10T10:00:00Z",
+      data: { exercise: "臀推", weight_kg: 60, sets: 3, reps: 10 },
+    });
+    const map = lastUsedByExercise([early, late]);
+    expect(map.get("臀推")).toBe("2026-08-10T10:00:00Z");
+  });
+
+  it("非力量类型与空列表忽略,非法日期跳过", () => {
+    const running = workout({ type: "running", data: { distance_meters: 1000, duration_seconds: 300, mood: 3 } });
+    const badDate = workout({
+      type: "strength",
+      date: "not-a-date",
+      data: { exercise: "深蹲", weight_kg: 60, sets: 3, reps: 10 },
+    });
+    expect(lastUsedByExercise([running, badDate]).size).toBe(0);
+    expect(lastUsedByExercise([]).size).toBe(0);
   });
 });

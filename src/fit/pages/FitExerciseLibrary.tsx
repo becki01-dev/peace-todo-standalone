@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useExerciseDict } from "../useExerciseDict";
+import { useExerciseHistory } from "../useExerciseHistory";
 import {
   EQUIPMENT_LABELS,
   EXERCISE_CATALOG,
@@ -25,13 +26,26 @@ import {
   type MuscleId,
 } from "../muscles";
 
+const DAY_MS = 86400000;
+const daysSince = (iso: string, now = Date.now()) => Math.floor((now - new Date(iso).getTime()) / DAY_MS);
+const recentLabelFor = (lastUsed: Map<string, string>, name: string): string | null => {
+  const iso = lastUsed.get(name);
+  if (!iso) return null;
+  const days = daysSince(iso);
+  if (days <= 7) return "7 天内练过";
+  if (days <= 30) return "30 天内练过";
+  return "30 天没练";
+};
+
 const FitExerciseLibrary = () => {
   const navigate = useNavigate();
   const { dict } = useExerciseDict();
+  const { lastUsed } = useExerciseHistory();
   const [query, setQuery] = useState("");
   const [group, setGroup] = useState<MuscleGroupId | null>(null);
   const [muscle, setMuscle] = useState<MuscleId | null>(null);
   const [selectedNames, setSelectedNames] = useState<string[]>([]);
+  const [hideRecent, setHideRecent] = useState(false);
 
   const groupCounts = useMemo(() => {
     const counts = new Map<MuscleGroupId, number>();
@@ -53,8 +67,14 @@ const FitExerciseLibrary = () => {
       : group
         ? entriesForGroup(group)
         : EXERCISE_CATALOG;
-    return base.filter((entry) => exerciseMatchesQuery(entry, query, dict));
-  }, [group, muscle, query, dict]);
+    return base.filter((entry) => {
+      if (hideRecent) {
+        const iso = lastUsed.get(entry.name);
+        if (iso && daysSince(iso) <= 7) return false;
+      }
+      return exerciseMatchesQuery(entry, query, dict);
+    });
+  }, [group, muscle, query, dict, hideRecent, lastUsed]);
 
   const selectGroup = (next: MuscleGroupId | null) => {
     setGroup(next);
@@ -116,8 +136,16 @@ const FitExerciseLibrary = () => {
           </div>
         )}
 
+        {lastUsed.size > 0 && (
+          <div className="flex flex-wrap gap-1.5" role="group" aria-label="多样性筛选">
+            <FilterChip active={hideRecent} onClick={() => setHideRecent((prev) => !prev)}>
+              隐藏 7 天内练过
+            </FilterChip>
+          </div>
+        )}
+
         <p className="text-[11px] text-fit-muted leading-relaxed">
-          主要肌肉用于筛选;次要肌肉在动作卡里展示。每个肌肉至少准备了 2 个动作。
+          主要肌肉用于筛选;次要肌肉在动作卡里展示。动作卡会标出最近练过或很久没练,方便换动作。
         </p>
       </section>
 
@@ -144,6 +172,7 @@ const FitExerciseLibrary = () => {
               entry={entry}
               showGroup={!group}
               selected={selectedNames.includes(entry.name)}
+              recent={recentLabelFor(lastUsed, entry.name)}
               onToggle={() => toggleSelection(entry.name)}
             />
           ))}
@@ -202,11 +231,13 @@ const ExerciseCard = ({
   entry,
   showGroup,
   selected,
+  recent,
   onToggle,
 }: {
   entry: ExerciseCatalogEntry;
   showGroup: boolean;
   selected: boolean;
+  recent: string | null;
   onToggle: () => void;
 }) => {
   const groupLabel = MUSCLE_GROUP_LABELS[MUSCLES[entry.primaryMuscles[0]].group];
@@ -218,6 +249,7 @@ const ExerciseCard = ({
           <p className="text-xs text-fit-muted">{entry.en}</p>
         </div>
         <div className="flex flex-wrap gap-1 justify-end shrink-0">
+          {recent && <Tag tone={recent === "30 天没练" ? "accent" : "muted"}>{recent}</Tag>}
           {showGroup && <Tag>{groupLabel}</Tag>}
           <Tag>{EQUIPMENT_LABELS[entry.equipment]}</Tag>
           <Tag>{MOVEMENT_PATTERN_LABELS[entry.pattern]}</Tag>
@@ -252,8 +284,15 @@ const ExerciseCard = ({
   );
 };
 
-const Tag = ({ children }: { children: ReactNode }) => (
-  <span className="px-2 py-0.5 rounded-full text-[10px] bg-fit-surface border border-fit-border text-fit-muted">
+const Tag = ({ children, tone = "muted" }: { children: ReactNode; tone?: "muted" | "accent" }) => (
+  <span
+    className={cn(
+      "px-2 py-0.5 rounded-full text-[10px] border",
+      tone === "accent"
+        ? "bg-fit-accent/15 text-fit-accent border-fit-accent/30"
+        : "bg-fit-surface text-fit-muted border-fit-border",
+    )}
+  >
     {children}
   </span>
 );

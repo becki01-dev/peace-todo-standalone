@@ -14,6 +14,17 @@ vi.mock("../useExerciseDict", () => ({
   }),
 }));
 
+vi.mock("../useExerciseHistory", () => ({
+  useExerciseHistory: () => ({
+    lastUsed: new Map([
+      ["臀推", new Date(Date.now() - 2 * 86400000).toISOString()],
+      ["卧推", new Date(Date.now() - 10 * 86400000).toISOString()],
+      ["髋外展", new Date(Date.now() - 40 * 86400000).toISOString()],
+    ]),
+    loading: false,
+  }),
+}));
+
 const renderPage = () =>
   render(
     <MemoryRouter>
@@ -65,6 +76,19 @@ describe("FitExerciseLibrary", () => {
     expect(screen.getByText(/没有匹配的动作/)).toBeInTheDocument();
   });
 
+  it("显示最近练过/很久没练标记", () => {
+    renderPage();
+    expect(screen.getByText("7 天内练过")).toBeInTheDocument();
+    expect(screen.getByText("30 天内练过")).toBeInTheDocument();
+    expect(screen.getByText("30 天没练")).toBeInTheDocument();
+  });
+
+  it("隐藏 7 天内练过的动作", () => {
+    renderPage();
+    fireEvent.click(screen.getByRole("button", { name: "隐藏 7 天内练过" }));
+    expect(screen.queryByText("臀推")).not.toBeInTheDocument();
+    expect(screen.getByText("髋外展")).toBeInTheDocument();
+  });
   it("选择动作后开始训练,把动作名带到会话页", () => {
     render(
       <MemoryRouter initialEntries={["/fit/library"]}>

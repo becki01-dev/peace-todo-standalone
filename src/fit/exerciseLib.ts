@@ -176,3 +176,25 @@ export const frequentExerciseNames = (workouts: Workout[], limit: number): strin
     .slice(0, limit)
     .map(([name]) => name);
 };
+
+/** 每个动作最近一次训练日期(ISO 字符串);会话/legacy 两种格式都支持,非力量类型忽略 */
+export const lastUsedByExercise = (workouts: Workout[]): Map<string, string> => {
+  const map = new Map<string, string>();
+  workouts.forEach((workout) => {
+    if (workout.type !== "strength") return;
+    const data = workout.data as { exercises?: Array<{ name: string }>; exercise?: string };
+    const names = Array.isArray(data.exercises)
+      ? data.exercises.map((exercise) => exercise.name)
+      : data.exercise
+        ? [data.exercise]
+        : [];
+    const ts = Date.parse(workout.date);
+    if (Number.isNaN(ts)) return;
+    names.forEach((name) => {
+      if (!name) return;
+      const prev = map.get(name);
+      if (!prev || Date.parse(prev) < ts) map.set(name, workout.date);
+    });
+  });
+  return map;
+};
