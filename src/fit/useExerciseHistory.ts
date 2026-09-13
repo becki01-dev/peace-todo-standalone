@@ -18,23 +18,27 @@ export const useExerciseHistory = () => {
     }
     let cancelled = false;
     setLoading(true);
-    supabase
-      .from("workouts")
-      .select("type, data, date")
-      .eq("user_id", user.id)
-      .eq("type", "strength")
-      .order("date", { ascending: false })
-      .limit(200)
-      .then(({ data }) => {
+
+    const load = async () => {
+      try {
+        const { data } = await supabase
+          .from("workouts")
+          .select("type, data, date")
+          .eq("user_id", user.id)
+          .eq("type", "strength")
+          .order("date", { ascending: false })
+          .limit(200);
         if (cancelled) return;
         setLastUsed(lastUsedByExercise((data ?? []) as unknown as Workout[]));
-        setLoading(false);
-      })
-      .catch(() => {
+      } catch {
         if (cancelled) return;
         setLastUsed(new Map());
-        setLoading(false);
-      });
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+
+    void load();
     return () => {
       cancelled = true;
     };
