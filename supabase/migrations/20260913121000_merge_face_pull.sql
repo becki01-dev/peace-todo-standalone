@@ -26,7 +26,7 @@ set data = jsonb_set(
         select coalesce(
           jsonb_agg(
             case
-              when elem->>'name' = 'Face pull' then jsonb_set(elem, '{name}', to_jsonb('面拉'))
+              when elem->>'name' = 'Face pull' then jsonb_set(elem, '{name}', to_jsonb('面拉'::text))
               else elem
             end
             order by ord
@@ -45,7 +45,7 @@ where w.data ? 'exercises'
 
 -- workouts.legacy / session 的 exercise 汇总字段
 update public.workouts
-set data = jsonb_set(data, '{exercise}', to_jsonb('面拉'))
+set data = jsonb_set(data, '{exercise}', to_jsonb('面拉'::text))
 where data->>'exercise' = 'Face pull';
 
 commit;
