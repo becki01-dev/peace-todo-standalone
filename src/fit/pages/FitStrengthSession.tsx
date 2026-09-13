@@ -1,5 +1,5 @@
 import { Component, useEffect, useState, type ReactNode } from "react";
-import { useNavigate, useOutletContext, useSearchParams } from "react-router-dom";
+import { useLocation, useNavigate, useOutletContext, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
@@ -37,11 +37,14 @@ class FormErrorBoundary extends Component<{ children: ReactNode }, { error: Erro
 
 const FitStrengthSession = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams] = useSearchParams();
   const { onWorkoutSaved } = useOutletContext<{ onWorkoutSaved: () => void }>();
   const editId = searchParams.get("edit");
   const copyId = searchParams.get("copy");
   const mode: StrengthFormMode = editId ? "edit" : copyId ? "copy" : "create";
+  const prefillNames = (location.state as { prefillExercises?: string[] } | null)?.prefillExercises;
+
   const [initialWorkout, setInitialWorkout] = useState<Workout | null>(null);
   const [loading, setLoading] = useState(mode !== "create");
 
@@ -86,7 +89,12 @@ const FitStrengthSession = () => {
 
   return (
     <FormErrorBoundary>
-      <StrengthForm mode={mode} initialWorkout={initialWorkout ?? undefined} onSaved={handleSaved} />
+      <StrengthForm
+        mode={mode}
+        initialWorkout={initialWorkout ?? undefined}
+        prefillNames={prefillNames}
+        onSaved={handleSaved}
+      />
     </FormErrorBoundary>
   );
 };

@@ -1,7 +1,7 @@
 // 只读动作参考页测试:默认列表、部位/肌肉筛选、搜索与空态
 import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import FitExerciseLibrary from "./FitExerciseLibrary";
 
 vi.mock("../useExerciseDict", () => ({
@@ -20,6 +20,11 @@ const renderPage = () =>
       <FitExerciseLibrary />
     </MemoryRouter>,
   );
+
+const SessionProbe = () => {
+  const location = useLocation();
+  return <div>SESSION_STATE:{JSON.stringify(location.state)}</div>;
+};
 
 describe("FitExerciseLibrary", () => {
   it("默认展示全部动作,动作卡含中英文与主要肌肉", () => {
@@ -58,5 +63,22 @@ describe("FitExerciseLibrary", () => {
 
     fireEvent.change(input, { target: { value: "不存在的动作xyz" } });
     expect(screen.getByText(/没有匹配的动作/)).toBeInTheDocument();
+  });
+
+  it("选择动作后开始训练,把动作名带到会话页", () => {
+    render(
+      <MemoryRouter initialEntries={["/fit/library"]}>
+        <Routes>
+          <Route path="/fit/library" element={<FitExerciseLibrary />} />
+          <Route path="/fit/strength/session" element={<SessionProbe />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /加入 臀推/ }));
+    expect(screen.getByText(/已选 1 个动作/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "开始训练" }));
+    expect(screen.getByText(/SESSION_STATE:/)).toHaveTextContent("臀推");
   });
 });

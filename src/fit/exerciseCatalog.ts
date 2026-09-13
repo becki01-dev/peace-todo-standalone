@@ -2,7 +2,7 @@
 // 唯一键 name 必须与 exercise_dictionary 的规范中文名一致(新增动作待后续迁移补齐别名);
 // 页面只读,按肌肉分组检索。数据完整性/覆盖测试见 exerciseCatalog.test.ts。
 
-import { exerciseSearchMatch, type ExerciseDict } from "./exerciseLib";
+import { exerciseSearchMatch, type BodyPart, type ExerciseDict } from "./exerciseLib";
 import {
   MUSCLES,
   MUSCLE_GROUP_LABELS,
@@ -611,4 +611,25 @@ export const exerciseMatchesQuery = (
   ];
   if (haystack.some((text) => text.toLowerCase().includes(query))) return true;
   return dict ? exerciseSearchMatch(entry.name, query, dict) : false;
+};
+
+/** 动作名精确匹配(参考页/表单预填共用) */
+export const findCatalogExercise = (name: string): ExerciseCatalogEntry | undefined =>
+  EXERCISE_CATALOG.find((entry) => entry.name === name);
+
+/** 参考页动作的粗 body_part(取第一个 primary 肌肉的兼容分类);没有 catalog 命中则 null */
+export const catalogBodyPart = (name: string): BodyPart | null => {
+  const entry = findCatalogExercise(name);
+  if (!entry) return null;
+  const first = MUSCLES[entry.primaryMuscles[0]];
+  return first ? first.bodyPart : null;
+};
+
+/** 参考页动作的表单默认值:自重动作 BW,其余默认 10 次;没有 catalog 命中则 null */
+export const catalogExerciseDefaults = (
+  name: string,
+): { bodyweight: boolean; default_reps: number } | null => {
+  const entry = findCatalogExercise(name);
+  if (!entry) return null;
+  return { bodyweight: entry.equipment === "bodyweight", default_reps: 10 };
 };

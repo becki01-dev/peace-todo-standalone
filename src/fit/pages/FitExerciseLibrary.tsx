@@ -1,7 +1,10 @@
 // 只读动作参考页:按部位/肌肉/搜索查动作,展示主要/次要肌肉、器械、模式与要点。
+// 动作卡可加入本次训练;底部出现选择条,点开始训练把动作名带到力量会话表单预填。
 import { useMemo, useState, type ReactNode } from "react";
-import { Search } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Check, Plus, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useExerciseDict } from "../useExerciseDict";
 import {
@@ -23,10 +26,12 @@ import {
 } from "../muscles";
 
 const FitExerciseLibrary = () => {
+  const navigate = useNavigate();
   const { dict } = useExerciseDict();
   const [query, setQuery] = useState("");
   const [group, setGroup] = useState<MuscleGroupId | null>(null);
   const [muscle, setMuscle] = useState<MuscleId | null>(null);
+  const [selectedNames, setSelectedNames] = useState<string[]>([]);
 
   const groupCounts = useMemo(() => {
     const counts = new Map<MuscleGroupId, number>();
@@ -56,6 +61,15 @@ const FitExerciseLibrary = () => {
     setMuscle(null);
   };
 
+  const toggleSelection = (name: string) => {
+    setSelectedNames((prev) => (prev.includes(name) ? prev.filter((item) => item !== name) : [...prev, name]));
+  };
+
+  const startSession = () => {
+    if (selectedNames.length === 0) return;
+    navigate("/fit/strength/session", { state: { prefillExercises: selectedNames } });
+  };
+
   const summary = muscle
     ? "主要练 " + MUSCLES[muscle].label
     : group
@@ -63,7 +77,7 @@ const FitExerciseLibrary = () => {
       : "全部动作";
 
   return (
-    <div className="space-y-4">
+    <div className={cn("space-y-4", selectedNames.length > 0 && "pb-24")}>
       <section className="p-4 rounded-xl bg-fit-card border border-fit-border space-y-3">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-fit-muted pointer-events-none" />
@@ -125,9 +139,36 @@ const FitExerciseLibrary = () => {
       ) : (
         <ul className="space-y-2">
           {filtered.map((entry) => (
-            <ExerciseCard key={entry.name} entry={entry} showGroup={!group} />
+            <ExerciseCard
+              key={entry.name}
+              entry={entry}
+              showGroup={!group}
+              selected={selectedNames.includes(entry.name)}
+              onToggle={() => toggleSelection(entry.name)}
+            />
           ))}
         </ul>
+      )}
+
+      {selectedNames.length > 0 && (
+        <div className="fixed left-0 right-0 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-20 pointer-events-none">
+          <div className="max-w-2xl mx-auto px-4 pointer-events-auto">
+            <div className="flex items-center gap-3 p-3 rounded-xl bg-fit-card border border-fit-accent/40 shadow-fit-glow">
+              <span className="text-sm text-fit-foreground">已选 {selectedNames.length} 个动作</span>
+              <div className="flex-1" />
+              <button type="button" onClick={() => setSelectedNames([])} className="text-xs text-fit-muted">
+                清空
+              </button>
+              <Button
+                size="sm"
+                onClick={startSession}
+                className="bg-fit-accent text-fit-accent-foreground hover:bg-fit-accent/90"
+              >
+                开始训练
+              </Button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
@@ -157,7 +198,17 @@ const FilterChip = ({
   </button>
 );
 
-const ExerciseCard = ({ entry, showGroup }: { entry: ExerciseCatalogEntry; showGroup: boolean }) => {
+const ExerciseCard = ({
+  entry,
+  showGroup,
+  selected,
+  onToggle,
+}: {
+  entry: ExerciseCatalogEntry;
+  showGroup: boolean;
+  selected: boolean;
+  onToggle: () => void;
+}) => {
   const groupLabel = MUSCLE_GROUP_LABELS[MUSCLES[entry.primaryMuscles[0]].group];
   return (
     <li className="p-4 rounded-xl bg-fit-card border border-fit-border space-y-2.5">
@@ -179,6 +230,24 @@ const ExerciseCard = ({ entry, showGroup }: { entry: ExerciseCatalogEntry; showG
       )}
 
       {entry.tips && <p className="text-xs text-fit-muted leading-relaxed">{entry.tips}</p>}
+
+      <div className="flex items-center justify-end pt-0.5">
+        <button
+          type="button"
+          aria-pressed={selected}
+          aria-label={(selected ? "移出 " : "加入 ") + entry.name}
+          onClick={onToggle}
+          className={cn(
+            "inline-flex items-center gap-1 px-2.5 py-1.5 rounded-full text-xs font-semibold border transition-smooth",
+            selected
+              ? "bg-fit-accent text-fit-accent-foreground border-fit-accent"
+              : "bg-fit-surface text-fit-muted border-fit-border hover:text-fit-foreground",
+          )}
+        >
+          {selected ? <Check className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5" />}
+          {selected ? "已加入" : "加入"}
+        </button>
+      </div>
     </li>
   );
 };

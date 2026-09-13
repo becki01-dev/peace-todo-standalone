@@ -23,6 +23,7 @@ import {
   type BodyPart,
   type UserExercise,
 } from "./exerciseLib";
+import { catalogBodyPart, catalogExerciseDefaults } from "./exerciseCatalog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { currentTimeHm, todayYmd } from "./dates";
@@ -35,6 +36,8 @@ interface StrengthFormProps {
   /** edit/copy 模式必传,页面 fetch 完成后才挂载表单 */
   initialWorkout?: Workout;
   onSaved: () => void;
+  /** create 模式从动作参考页带入的预填动作名 */
+  prefillNames?: string[];
 }
 
 type SessionSet = {
@@ -118,7 +121,23 @@ function workoutToExercises(workout: Workout | undefined, defaultUnit: WeightUni
   ];
 }
 
-export const StrengthForm = ({ mode, initialWorkout, onSaved }: StrengthFormProps) => {
+/** 动作默认值:用户字典/预设优先,再看动作库 catalog,最后 10 次 */
+const resolveExerciseDefaults = (name: string, dict: UserExercise[]) => {
+  const base = exerciseDefaults(name, dict);
+  const catalog = catalogExerciseDefaults(name);
+  return {
+    bodyweight: base.default_reps !== null ? base.bodyweight : catalog?.bodyweight ?? false,
+    default_reps: base.default_reps ?? catalog?.default_reps ?? 10,
+  };
+};
+
+/** 动作部位:用户字典/预设优先,未知动作再用 catalog 的粗分类兜底 */
+const resolveBodyPartWithCatalog = (name: string, dict: UserExercise[]) => {
+  const resolved = resolveBodyPart(name, dict);
+  return resolved === "full_body" ? catalogBodyPart(name) ?? resolved : resolved;
+};
+
+export const StrengthForm = ({ mode, initialWorkout, prefillNames, onSaved }: StrengthFormProps) => {
   const { user } = useAuth();
   const { prefs } = usePreferences();
   const { dict: exDict } = useExerciseDict(); // 全局映射字典(DB exercise_dictionary)
@@ -136,9 +155,30 @@ export const StrengthForm = ({ mode, initialWorkout, onSaved }: StrengthFormProp
   });
   const [notes, setNotes] = useState(() => initialWorkout?.notes ?? "");
   const [customExercise, setCustomExercise] = useState("");
-  const [exercises, setExercises] = useState<SessionExercise[]>(() =>
-    initialWorkout ? workoutToExercises(initialWorkout, prefs.weight_unit) : [],
-  );
+  const [exercises, setExercises] = useState<SessionExercise[]>(() => {
+    if (initialWorkout) return workoutToExercises(initialWorkout, prefs.weight_unit);
+    if (mode === "create" && prefillNames && prefillNames.length > 0) {
+      return prefillNames.map((name) => {
+        const defs = resolveExerciseDefaults(name, []);
+        return {
+          id: createId(),
+          name,
+          done: false,
+          body_part: resolveBodyPartWithCatalog(name, []),
+          sets: [
+            {
+              weight: "",
+              reps: String(defs.default_reps),
+              bodyweight: defs.bodyweight,
+              done: false,
+              weight_unit: prefs.weight_unit,
+            },
+          ],
+        };
+      });
+    }
+    return [];
+  });
   const [saving, setSaving] = useState(false);
   // 动作字典与历史常用动作(表单加载时拉取,失败静默:预设兜底)
   const [dict, setDict] = useState<UserExercise[]>([]);
@@ -210,20 +250,20 @@ export const StrengthForm = ({ mode, initialWorkout, onSaved }: StrengthFormProp
   const addExercise = (name: string) => {
     const trimmed = name.trim();
     if (!trimmed) return;
-        const normalized = normalizeExerciseName(trimmed, exDict);
+    const normalized = normalizeExerciseName(trimmed, exDict);
     if (normalized !== trimmed) toast.info(`已识别「${trimmed}」→「${normalized}」`);
-    const defs = exerciseDefaults(normalized, dict);
+    const defs = resolveExerciseDefaults(normalized, dict);
     setExercises((prev) => [
       ...prev,
       {
         id: createId(),
         name: normalized,
         done: false,
-        body_part: resolveBodyPart(normalized, dict),
+        body_part: resolveBodyPartWithCatalog(normalized, dict),
         sets: [
           {
             weight: "",
-            reps: defs.default_reps ? String(defs.default_reps) : "10",
+            reps: String(defs.default_reps),
             bodyweight: defs.bodyweight,
             done: false,
             weight_unit: prefs.weight_unit,

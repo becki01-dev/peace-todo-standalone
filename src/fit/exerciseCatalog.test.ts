@@ -4,9 +4,12 @@ import {
   EQUIPMENT_LABELS,
   EXERCISE_CATALOG,
   MOVEMENT_PATTERN_LABELS,
+  catalogBodyPart,
+  catalogExerciseDefaults,
   entriesForGroup,
   entriesForMuscle,
   exerciseMatchesQuery,
+  findCatalogExercise,
   type ExerciseCatalogEntry,
 } from "./exerciseCatalog";
 import {
@@ -115,5 +118,18 @@ describe("动作搜索", () => {
   it("字典别名兜底(如 arm curl 命中二头弯举)", () => {
     expect(exerciseMatchesQuery(find("二头弯举"), "arm curl", FIXTURE_DICT)).toBe(true);
     expect(exerciseMatchesQuery(find("二头弯举"), "arm curl", emptyDict())).toBe(false);
+  });
+});
+
+describe("catalog 表单辅助", () => {
+  it("提供动作查找、粗部位与表单默认值", () => {
+    expect(findCatalogExercise("臀推")?.en).toBe("Hip Thrust");
+    expect(catalogBodyPart("臀推")).toBe("legs");
+    expect(catalogBodyPart("面拉")).toBe("back");
+    expect(catalogBodyPart("波比跳")).toBe("full_body");
+    expect(catalogBodyPart("不存在的动作")).toBeNull();
+    expect(catalogExerciseDefaults("俯卧撑")).toEqual({ bodyweight: true, default_reps: 10 });
+    expect(catalogExerciseDefaults("臀推")).toEqual({ bodyweight: false, default_reps: 10 });
+    expect(catalogExerciseDefaults("不存在的动作")).toBeNull();
   });
 });

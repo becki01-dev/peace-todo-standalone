@@ -114,10 +114,11 @@ const TestLayout = ({ context }: { context: { onWorkoutSaved: () => void } }) =>
   <Outlet context={context} />
 );
 
-const renderSession = (path = "/fit/strength/session") => {
+type SessionEntry = string | { pathname: string; state?: unknown };
+const renderSession = (entry: SessionEntry = "/fit/strength/session") => {
   const context = { onWorkoutSaved: vi.fn() };
   render(
-    <MemoryRouter initialEntries={[path]}>
+    <MemoryRouter initialEntries={[entry]}>
       <AuthProvider>
         <PreferencesProvider>
           <ExerciseDictProvider>
@@ -183,6 +184,31 @@ describe("StrengthForm (力量训练统一表单)", () => {
     expect(await screen.findByText("HISTORY_PLACEHOLDER")).toBeInTheDocument();
   });
 
+  it("从动作参考页带入:预填动作,默认 10 次,部位用 catalog 兜底", async () => {
+    const chain = setupClient({ data: null, error: null });
+    renderSession({ pathname: "/fit/strength/session", state: { prefillExercises: ["臀推", "罗马尼亚硬拉"] } });
+
+    expect(await screen.findByDisplayValue("臀推")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("罗马尼亚硬拉")).toBeInTheDocument();
+
+    const weightInputs = screen.getAllByPlaceholderText("重量");
+    expect(weightInputs).toHaveLength(2);
+    weightInputs.forEach((input) => fireEvent.change(input, { target: { value: "20" } }));
+    fireEvent.change(screen.getByPlaceholderText("如 45"), { target: { value: "30" } });
+    fireEvent.click(screen.getByRole("button", { name: /完成训练/ }));
+
+    await waitFor(() => expect(chain.insert).toHaveBeenCalled(), { timeout: 2000 });
+    expect(chain.insert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          exercises: expect.arrayContaining([
+            expect.objectContaining({ name: "臀推", body_part: "legs" }),
+            expect.objectContaining({ name: "罗马尼亚硬拉", body_part: "legs" }),
+          ]),
+        }),
+      }),
+    );
+  });
   it("编辑:日期时间只读展示(含 UTC→本地回归),其余可改,update 载荷正确", async () => {
     const workout = makeStrengthWorkout({});
     const chain = setupClient({ data: workout, error: null });
