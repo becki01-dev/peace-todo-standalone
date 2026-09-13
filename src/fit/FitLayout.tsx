@@ -11,6 +11,7 @@ import { Workout } from "./types";
 const TITLES: Record<string, string> = {
   "/fit": "历史记录",
   "/fit/stats": "数据统计",
+  "/fit/library": "动作参考",
   "/fit/settings": "个人设置",
   "/fit/exercises": "动作字典",
   "/fit/strength/session": "力量训练",

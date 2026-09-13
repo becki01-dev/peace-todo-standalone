@@ -12,6 +12,7 @@ import FitHistoryRoute from "./fit/pages/FitHistoryRoute";
 import FitStats from "./fit/pages/FitStats";
 import FitSettings from "./fit/pages/FitSettings";
 import FitExerciseDict from "./fit/pages/FitExerciseDict";
+import FitExerciseLibrary from "./fit/pages/FitExerciseLibrary";
 import FitStrengthSession from "./fit/pages/FitStrengthSession";
 
 const queryClient = new QueryClient();
@@ -30,6 +31,7 @@ const App = () => (
             <Route path="/fit" element={<FitLayout />}>
               <Route index element={<FitHistoryRoute />} />
               <Route path="stats" element={<FitStats />} />
+              <Route path="library" element={<FitExerciseLibrary />} />
               <Route path="settings" element={<FitSettings />} />
               <Route path="exercises" element={<FitExerciseDict />} />
               <Route path="strength/session" element={<FitStrengthSession />} />

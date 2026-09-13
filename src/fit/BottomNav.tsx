@@ -1,10 +1,19 @@
 import { NavLink, useLocation } from "react-router-dom";
-import { History, BarChart3, Settings, Plus, type LucideIcon } from "lucide-react";
+import { History, BarChart3, Settings, Plus, Dumbbell, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const items = [
+interface NavItemDef {
+  to: string;
+  icon: LucideIcon;
+  label: string;
+  end?: boolean;
+}
+
+// 2+2 对称:历史 / 统计 | FAB | 动作 / 设置
+const items: NavItemDef[] = [
   { to: "/fit", icon: History, label: "历史", end: true },
   { to: "/fit/stats", icon: BarChart3, label: "统计" },
+  { to: "/fit/library", icon: Dumbbell, label: "动作" },
   { to: "/fit/settings", icon: Settings, label: "设置" },
 ];
 
@@ -17,16 +26,11 @@ export const BottomNav = ({ onAdd }: { onAdd: () => void }) => {
     <nav className="fixed bottom-0 left-0 right-0 z-30 fit-bottom-nav">
       <div className="max-w-2xl mx-auto px-2 pb-[env(safe-area-inset-bottom)]">
         <div className="flex items-center justify-around relative h-16">
-          <NavLink to={items[0].to} end={items[0].end} className="flex-1">
-            {({ isActive }) => (
-              <NavItem icon={History} label="历史" active={isActive} />
-            )}
-          </NavLink>
-          <NavLink to={items[1].to} className="flex-1">
-            {({ isActive }) => (
-              <NavItem icon={BarChart3} label="统计" active={isActive} />
-            )}
-          </NavLink>
+          {items.slice(0, 2).map((item) => (
+            <NavLink key={item.to} to={item.to} end={item.end} className="flex-1">
+              {({ isActive }) => <NavItem icon={item.icon} label={item.label} active={isActive} />}
+            </NavLink>
+          ))}
           {/* center FAB */}
           <button
             onClick={onAdd}
@@ -35,12 +39,11 @@ export const BottomNav = ({ onAdd }: { onAdd: () => void }) => {
           >
             <Plus className="w-7 h-7" strokeWidth={3} />
           </button>
-          <NavLink to={items[2].to} className="flex-1">
-            {({ isActive }) => (
-              <NavItem icon={Settings} label="设置" active={isActive} />
-            )}
-          </NavLink>
-          <div className="flex-1" />
+          {items.slice(2).map((item) => (
+            <NavLink key={item.to} to={item.to} end={item.end} className="flex-1">
+              {({ isActive }) => <NavItem icon={item.icon} label={item.label} active={isActive} />}
+            </NavLink>
+          ))}
         </div>
       </div>
     </nav>
