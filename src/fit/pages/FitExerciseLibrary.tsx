@@ -366,12 +366,12 @@ const ExerciseCard = ({
     const english = dict.en[item.name];
     return (
       <li className="p-4 rounded-xl bg-fit-card border border-fit-border space-y-2.5">
-        <div className="flex items-start justify-between gap-2">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0">
             <h3 className="text-sm font-semibold text-fit-foreground">{item.name}</h3>
             <p className="text-xs text-fit-muted">{english ?? "未匹配到标准动作"}</p>
           </div>
-          <div className="flex flex-wrap gap-1 justify-end shrink-0">
+          <div className="flex flex-wrap gap-1 sm:justify-end sm:shrink-0">
             <Tag>历史动作</Tag>
             {countLabel && <Tag>{countLabel}</Tag>}
             {recent && <Tag tone={recent === "30 天没练" ? "accent" : "muted"}>{recent}</Tag>}
@@ -393,12 +393,12 @@ const ExerciseCard = ({
   const groupLabel = MUSCLE_GROUP_LABELS[MUSCLES[entry.primaryMuscles[0]].group];
   return (
     <li className="p-4 rounded-xl bg-fit-card border border-fit-border space-y-2.5">
-      <div className="flex items-start justify-between gap-2">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <h3 className="text-sm font-semibold text-fit-foreground">{entry.name}</h3>
           <p className="text-xs text-fit-muted">{entry.en}</p>
         </div>
-        <div className="flex flex-wrap gap-1 justify-end shrink-0">
+        <div className="flex flex-wrap gap-1 sm:justify-end sm:shrink-0">
           {recent && <Tag tone={recent === "30 天没练" ? "accent" : "muted"}>{recent}</Tag>}
           {countLabel && <Tag>{countLabel}</Tag>}
           {showGroup && <Tag>{groupLabel}</Tag>}
