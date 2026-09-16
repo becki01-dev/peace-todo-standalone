@@ -4,12 +4,14 @@ import {
   EQUIPMENT_LABELS,
   EXERCISE_CATALOG,
   MOVEMENT_PATTERN_LABELS,
+  buildCatalogLookup,
   catalogBodyPart,
   catalogExerciseDefaults,
   entriesForGroup,
   entriesForMuscle,
   exerciseMatchesQuery,
   findCatalogExercise,
+  resolveCatalogExercise,
   type ExerciseCatalogEntry,
 } from "./exerciseCatalog";
 import {
@@ -19,7 +21,7 @@ import {
   MUSCLE_IDS,
   musclesByGroup,
 } from "./muscles";
-import { emptyDict } from "./exerciseLib";
+import { dictFromRows, emptyDict } from "./exerciseLib";
 import { FIXTURE_DICT } from "./testDict.fixture";
 
 const find = (name: string): ExerciseCatalogEntry => {
@@ -131,5 +133,30 @@ describe("catalog 表单辅助", () => {
     expect(catalogExerciseDefaults("俯卧撑")).toEqual({ bodyweight: true, default_reps: 10 });
     expect(catalogExerciseDefaults("臀推")).toEqual({ bodyweight: false, default_reps: 10 });
     expect(catalogExerciseDefaults("不存在的动作")).toBeNull();
+  });
+});
+
+describe("历史动作 → catalog 精确匹配", () => {
+  it("英文别名和补充词能命中标准动作", () => {
+    expect(resolveCatalogExercise("pull-up", FIXTURE_DICT)?.name).toBe("引体向上");
+    expect(resolveCatalogExercise("chin ups", FIXTURE_DICT)?.name).toBe("引体向上");
+    expect(resolveCatalogExercise("平板卧推", emptyDict())?.name).toBe("卧推");
+    expect(resolveCatalogExercise("hip thrust", FIXTURE_DICT)?.name).toBe("臀推");
+  });
+
+  it("中文变体能映射到 catalog 规范动作", () => {
+    const dict = dictFromRows([{ id: "zh-butt", kind: "zh_alias", key: "臀冲", value: "臀推" }]);
+    expect(resolveCatalogExercise("臀冲", dict)?.name).toBe("臀推");
+  });
+
+  it("未收录动作不硬猜,返回 undefined", () => {
+    expect(resolveCatalogExercise("哈克深蹲", FIXTURE_DICT)).toBeUndefined();
+    expect(resolveCatalogExercise("随便编的动作", FIXTURE_DICT)).toBeUndefined();
+  });
+
+  it("lookup 可复用,匹配结果稳定", () => {
+    const lookup = buildCatalogLookup(FIXTURE_DICT);
+    expect(resolveCatalogExercise("pull-up", FIXTURE_DICT, lookup)?.name).toBe("引体向上");
+    expect(resolveCatalogExercise("hip thrust", undefined, lookup)?.name).toBe("臀推");
   });
 });

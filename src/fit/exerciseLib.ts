@@ -177,9 +177,15 @@ export const frequentExerciseNames = (workouts: Workout[], limit: number): strin
     .map(([name]) => name);
 };
 
-/** 每个动作最近一次训练日期(ISO 字符串);会话/legacy 两种格式都支持,非力量类型忽略 */
-export const lastUsedByExercise = (workouts: Workout[]): Map<string, string> => {
-  const map = new Map<string, string>();
+/** 单动作历史用量:出现次数 + 最近一次训练日期 */
+export interface ExerciseUsage {
+  count: number;
+  lastUsed: string | null;
+}
+
+/** 从力量训练历史聚合每个动作的用量;会话/legacy 两种格式都支持,非力量类型忽略 */
+export const exerciseUsageByExercise = (workouts: Workout[]): Map<string, ExerciseUsage> => {
+  const usage = new Map<string, ExerciseUsage>();
   workouts.forEach((workout) => {
     if (workout.type !== "strength") return;
     const data = workout.data as { exercises?: Array<{ name: string }>; exercise?: string };
@@ -189,12 +195,22 @@ export const lastUsedByExercise = (workouts: Workout[]): Map<string, string> => 
         ? [data.exercise]
         : [];
     const ts = Date.parse(workout.date);
-    if (Number.isNaN(ts)) return;
     names.forEach((name) => {
       if (!name) return;
-      const prev = map.get(name);
-      if (!prev || Date.parse(prev) < ts) map.set(name, workout.date);
+      const prev = usage.get(name) ?? { count: 0, lastUsed: null };
+      const lastUsed =
+        Number.isNaN(ts) || (prev.lastUsed && Date.parse(prev.lastUsed) >= ts) ? prev.lastUsed : workout.date;
+      usage.set(name, { count: prev.count + 1, lastUsed });
     });
+  });
+  return usage;
+};
+
+/** 每个动作最近一次训练日期(ISO 字符串);会话/legacy 两种格式都支持,非力量类型忽略 */
+export const lastUsedByExercise = (workouts: Workout[]): Map<string, string> => {
+  const map = new Map<string, string>();
+  exerciseUsageByExercise(workouts).forEach((usage, name) => {
+    if (usage.lastUsed) map.set(name, usage.lastUsed);
   });
   return map;
 };

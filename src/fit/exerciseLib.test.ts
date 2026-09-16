@@ -9,6 +9,7 @@ import {
   emptyDict,
   exerciseDefaults,
   exerciseSearchMatch,
+  exerciseUsageByExercise,
   frequentExerciseNames,
   lastUsedByExercise,
   normalizeExerciseName,
@@ -328,5 +329,55 @@ describe("lastUsedByExercise", () => {
     });
     expect(lastUsedByExercise([running, badDate]).size).toBe(0);
     expect(lastUsedByExercise([]).size).toBe(0);
+  });
+});
+
+describe("exerciseUsageByExercise", () => {
+  it("聚合次数与最近日期,会话/legacy 都支持", () => {
+    const early = workout({
+      type: "strength",
+      date: "2026-08-01T10:00:00Z",
+      data: {
+        session: true,
+        exercise: "",
+        weight_kg: 0,
+        sets: 1,
+        reps: 1,
+        exercises: [{ name: "深蹲", done: false, sets: [] }],
+      },
+    });
+    const late = workout({
+      type: "strength",
+      date: "2026-08-10T10:00:00Z",
+      data: {
+        session: true,
+        exercise: "",
+        weight_kg: 0,
+        sets: 1,
+        reps: 1,
+        exercises: [{ name: "深蹲", done: false, sets: [] }],
+      },
+    });
+    const legacy = workout({
+      type: "strength",
+      date: "2026-08-05T10:00:00Z",
+      data: { exercise: "卧推", weight_kg: 60, sets: 3, reps: 10 },
+    });
+
+    const usage = exerciseUsageByExercise([early, late, legacy]);
+    expect(usage.get("深蹲")).toEqual({ count: 2, lastUsed: "2026-08-10T10:00:00Z" });
+    expect(usage.get("卧推")).toEqual({ count: 1, lastUsed: "2026-08-05T10:00:00Z" });
+  });
+
+  it("非力量/空名忽略,非法日期仍计数但 lastUsed 为 null", () => {
+    const running = workout({ type: "running", data: { distance_meters: 1000, duration_seconds: 300, mood: 3 } });
+    const badDate = workout({
+      type: "strength",
+      date: "not-a-date",
+      data: { exercise: "深蹲", weight_kg: 60, sets: 3, reps: 10 },
+    });
+
+    const usage = exerciseUsageByExercise([running, badDate]);
+    expect(usage.get("深蹲")).toEqual({ count: 1, lastUsed: null });
   });
 });

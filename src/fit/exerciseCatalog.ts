@@ -607,6 +607,60 @@ export const EXERCISE_CATALOG: ExerciseCatalogEntry[] = [
   },
 ];
 
+/** 归一化 catalog 匹配 key:大小写/空格/连字符/括号不影响精确匹配 */
+export const normalizeCatalogKey = (value: string): string =>
+  value.trim().toLowerCase().replace(/[\s\-_/()（）·]+/g, "");
+
+/** catalog 精确索引;null 表示同一 key 对应多个动作,不自动匹配 */
+export type CatalogLookup = Map<string, ExerciseCatalogEntry | null>;
+
+/** 构建「历史动作名/词典别名 → catalog 动作」精确索引 */
+export const buildCatalogLookup = (dict?: ExerciseDict): CatalogLookup => {
+  const byName = new Map<string, ExerciseCatalogEntry>();
+  EXERCISE_CATALOG.forEach((entry) => byName.set(normalizeCatalogKey(entry.name), entry));
+
+  const lookup: CatalogLookup = new Map();
+  const register = (key: string, entry: ExerciseCatalogEntry) => {
+    const normalized = normalizeCatalogKey(key);
+    if (!normalized) return;
+    const existing = lookup.get(normalized);
+    if (existing === undefined) {
+      lookup.set(normalized, entry);
+      return;
+    }
+    if (existing && existing.name !== entry.name) lookup.set(normalized, null);
+  };
+
+  EXERCISE_CATALOG.forEach((entry) => {
+    register(entry.name, entry);
+    register(entry.en, entry);
+    entry.searchTerms?.forEach((term) => register(term, entry));
+  });
+
+  if (dict) {
+    Object.entries(dict.aliases).forEach(([key, value]) => {
+      const entry = byName.get(normalizeCatalogKey(value));
+      if (entry) register(key, entry);
+    });
+    Object.entries(dict.zhAliases).forEach(([key, value]) => {
+      const entry = byName.get(normalizeCatalogKey(value));
+      if (entry) register(key, entry);
+    });
+  }
+
+  return lookup;
+};
+
+/** 历史动作名 → catalog 动作;只做精确匹配,无命中或歧义返回 undefined */
+export const resolveCatalogExercise = (
+  name: string,
+  dict?: ExerciseDict,
+  lookup?: CatalogLookup,
+): ExerciseCatalogEntry | undefined => {
+  const index = lookup ?? buildCatalogLookup(dict);
+  return index.get(normalizeCatalogKey(name)) ?? undefined;
+};
+
 /** 按一级部位筛选(命中任一 primary 肌肉所在组) */
 export const entriesForGroup = (group: MuscleGroupId): ExerciseCatalogEntry[] =>
   EXERCISE_CATALOG.filter((entry) =>
