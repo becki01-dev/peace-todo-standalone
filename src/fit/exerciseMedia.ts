@@ -41,6 +41,8 @@ export const EXERCISE_MEDIA: Record<string, ExerciseMedia> = {
   俯卧撑: { slug: "push-up", source: "Push-up", frames: 3 },
   双杠臂屈伸: { slug: "dip", source: "Dip", frames: 3 },
   下斜卧推: { slug: "decline-bench-press", source: "Decline Bench Press", frames: 3 },
+  器械推胸: { slug: "machine-chest-press", source: "Machine Chest Press", frames: 3 },
+  飞鸟: { slug: "dumbbell-fly", source: "Dumbbell Fly", frames: 3 },
   // ---- 背 ----
   引体向上: { slug: "pull-up", source: "Pull-up", frames: 3 },
   高位下拉: { slug: "lat-pulldown", source: "Lat Pulldown", frames: 3 },
@@ -51,6 +53,8 @@ export const EXERCISE_MEDIA: Record<string, ExerciseMedia> = {
   划船: { slug: "barbell-row", source: "Barbell Row", frames: 3 },
   硬拉: { slug: "deadlift", source: "Deadlift", frames: 3 },
   早安式: { slug: "good-morning", source: "Good Morning", frames: 3 },
+  背伸展: { slug: "back-extension", source: "Back Extension", frames: 3 },
+  哑铃划船: { slug: "one-arm-dumbbell-row", source: "One-Arm Dumbbell Row", frames: 3 },
   // ---- 肩 ----
   肩推: { slug: "overhead-press", source: "Overhead Press", frames: 3 },
   前平举: { slug: "front-raise", source: "Front Raise", frames: 3 },
@@ -64,6 +68,12 @@ export const EXERCISE_MEDIA: Record<string, ExerciseMedia> = {
   窄距卧推: { slug: "close-grip-bench-press", source: "Close-Grip Bench Press", frames: 3 },
   腕弯举: { slug: "wrist-curl", source: "Wrist Curl", frames: 3 },
   反向弯举: { slug: "reverse-curl", source: "Reverse Curl", frames: 3 },
+  臂屈伸: {
+    slug: "dumbbell-overhead-tricep-extension",
+    source: "Dumbbell Overhead Tricep Extension",
+    frames: 3,
+    note: "上游为哑铃过顶臂屈伸;绳索/仰卧版本动作模式相同。",
+  },
   // ---- 核心 ----
   卷腹: { slug: "crunch", source: "Crunch", frames: 3 },
   绳索卷腹: { slug: "cable-crunch", source: "Cable Crunch", frames: 3 },
@@ -73,6 +83,12 @@ export const EXERCISE_MEDIA: Record<string, ExerciseMedia> = {
   侧平板: { slug: "side-plank", source: "Side Plank", frames: 3 },
   平板支撑: { slug: "plank", source: "Plank", frames: 3 },
   死虫: { slug: "dead-bug", source: "Dead Bug", frames: 3 },
+  前臂支撑举腿: {
+    slug: "captains-chair-knee-raise",
+    source: "Captain's Chair Knee Raise",
+    frames: 3,
+    note: "上游是屈膝版;直腿举腿的发力与幅度一致。",
+  },
   // ---- 臀 ----
   臀桥: { slug: "glute-bridge", source: "Glute Bridge", frames: 3 },
   臀推: { slug: "hip-thrust", source: "Hip Thrust", frames: 3 },
@@ -90,6 +106,26 @@ export const EXERCISE_MEDIA: Record<string, ExerciseMedia> = {
   腿弯举: { slug: "leg-curl", source: "Leg Curl", frames: 3 },
   髋内收: { slug: "cable-standing-hip-adduction", source: "Cable Standing Hip Adduction", frames: 3 },
   相扑深蹲: { slug: "dumbbell-sumo-squat", source: "Dumbbell Sumo Squat", frames: 3 },
+  哈克深蹲: { slug: "hack-squat", source: "Hack Squat", frames: 3 },
+  弓步: {
+    slug: "forward-lunge",
+    source: "Forward Lunge",
+    frames: 3,
+    note: "上游是自重前弓步;负重或行进版本动作模式相同。",
+  },
+  上台阶: { slug: "step-up", source: "Step-Up", frames: 3 },
+  哑铃上台阶: {
+    slug: "step-up",
+    source: "Step-Up",
+    frames: 3,
+    note: "与上台阶共用同一示范图,区别只在手持哑铃。",
+  },
+  哑铃弓步跳: {
+    slug: "forward-lunge",
+    source: "Forward Lunge",
+    frames: 3,
+    note: "上游无跳跃版本,借前弓步示意起止姿势。",
+  },
   // ---- 小腿 ----
   站姿提踵: { slug: "standing-calf-raise", source: "Standing Calf Raise", frames: 3 },
   腿举提踵: { slug: "leg-press-calf-raise", source: "Leg Press Calf Raise", frames: 3 },
@@ -100,6 +136,7 @@ export const EXERCISE_MEDIA: Record<string, ExerciseMedia> = {
     frames: 3,
     note: "上游没有自重版屈膝提踵,借用坐姿提踵(同为屈膝练比目鱼肌)。",
   },
+  提踵: { slug: "calf-raise", source: "Calf Raise", frames: 3 },
   // ---- 全身 ----
   壶铃摆荡: { slug: "kettlebell-swing", source: "Kettlebell Swing", frames: 3 },
   波比跳: { slug: "burpee", source: "Burpee", frames: 3 },

@@ -29,9 +29,9 @@ vi.mock("../useExerciseHistory", () => {
         ["卧推", { count: 5, lastUsed: daysAgo(10) }],
         ["髋外展", { count: 2, lastUsed: daysAgo(40) }],
         ["引体向上", { count: 4, lastUsed: daysAgo(1) }],
-        ["哈克深蹲", { count: 7, lastUsed: daysAgo(1) }],
+        ["雪橇推", { count: 7, lastUsed: daysAgo(1) }],
       ]),
-      knownNames: ["臀推", "卧推", "髋外展", "引体向上", "哈克深蹲"],
+      knownNames: ["臀推", "卧推", "髋外展", "引体向上", "雪橇推"],
       loading: false,
     }),
   };
@@ -120,7 +120,7 @@ describe("FitExerciseLibrary", () => {
 
   it("默认列表加入历史动作,匹配不到标准动作时显示提示", () => {
     renderPage();
-    expect(screen.getByText("哈克深蹲")).toBeInTheDocument();
+    expect(screen.getByText("雪橇推")).toBeInTheDocument();
     expect(screen.getByText("历史动作")).toBeInTheDocument();
     expect(screen.getByText(/暂无细分肌群信息/)).toBeInTheDocument();
   });
@@ -137,14 +137,14 @@ describe("FitExerciseLibrary", () => {
     renderPage();
     fireEvent.click(screen.getByRole("button", { name: /^背/ }));
     expect(screen.getByText("引体向上")).toBeInTheDocument();
-    expect(screen.queryByText("哈克深蹲")).not.toBeInTheDocument();
+    expect(screen.queryByText("雪橇推")).not.toBeInTheDocument();
   });
 
   it("我练过的筛选只显示有历史记录的动作", () => {
     renderPage();
     fireEvent.click(screen.getByRole("button", { name: /我练过的/ }));
     expect(screen.getByText("臀推")).toBeInTheDocument();
-    expect(screen.getByText("哈克深蹲")).toBeInTheDocument();
+    expect(screen.getByText("雪橇推")).toBeInTheDocument();
     expect(screen.queryByText("硬拉")).not.toBeInTheDocument();
   });
 
@@ -153,7 +153,7 @@ describe("FitExerciseLibrary", () => {
     fireEvent.click(screen.getByRole("button", { name: "只看没练过" }));
     expect(screen.getByText("硬拉")).toBeInTheDocument();
     expect(screen.queryByText("臀推")).not.toBeInTheDocument();
-    expect(screen.queryByText("哈克深蹲")).not.toBeInTheDocument();
+    expect(screen.queryByText("雪橇推")).not.toBeInTheDocument();
   });
 
   it("历史动作也能加入本次训练", () => {
@@ -166,11 +166,11 @@ describe("FitExerciseLibrary", () => {
       </MemoryRouter>,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: /加入 哈克深蹲/ }));
+    fireEvent.click(screen.getByRole("button", { name: /加入 雪橇推/ }));
     expect(screen.getByText(/已选 1 个动作/)).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "开始训练" }));
-    expect(screen.getByText(/SESSION_STATE:/)).toHaveTextContent("哈克深蹲");
+    expect(screen.getByText(/SESSION_STATE:/)).toHaveTextContent("雪橇推");
   });
 
   it("有示范图的动作卡显示缩略图,没有的显示占位", () => {

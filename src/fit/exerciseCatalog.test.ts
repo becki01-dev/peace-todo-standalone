@@ -150,8 +150,16 @@ describe("历史动作 → catalog 精确匹配", () => {
   });
 
   it("未收录动作不硬猜,返回 undefined", () => {
-    expect(resolveCatalogExercise("哈克深蹲", FIXTURE_DICT)).toBeUndefined();
+    expect(resolveCatalogExercise("雪橇推", FIXTURE_DICT)).toBeUndefined();
     expect(resolveCatalogExercise("随便编的动作", FIXTURE_DICT)).toBeUndefined();
+  });
+
+  it("历史里出现过的动作名现在能命中(器械推胸/哈克深蹲/弓步/背伸展/前臂支撑举腿)", () => {
+    expect(resolveCatalogExercise("器械推胸", FIXTURE_DICT)?.name).toBe("器械推胸");
+    expect(resolveCatalogExercise("chest press", FIXTURE_DICT)?.name).toBe("器械推胸");
+    expect(resolveCatalogExercise("哈克深蹲", FIXTURE_DICT)?.primaryMuscles).toEqual(["quads"]);
+    expect(resolveCatalogExercise("back extension", FIXTURE_DICT)?.name).toBe("背伸展");
+    expect(resolveCatalogExercise("卷腹提腿", FIXTURE_DICT)?.name).toBe("前臂支撑举腿");
   });
 
   it("lookup 可复用,匹配结果稳定", () => {
