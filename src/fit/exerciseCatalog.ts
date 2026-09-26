@@ -308,6 +308,16 @@ export const EXERCISE_CATALOG: ExerciseCatalogEntry[] = [
     pattern: "isolation",
     tips: "后束+菱形;俯身,手臂微屈向两侧打开,别用腰甩。",
   },
+  {
+    name: "哑铃肩外旋",
+    en: "Dumbbell Shoulder External Rotation",
+    primaryMuscles: ["rotator_cuff"],
+    secondaryMuscles: ["delts_rear"],
+    equipment: "dumbbell",
+    pattern: "isolation",
+    tips: "肩袖(冈下肌/小圆肌);小重量慢速,大臂贴身或外展 90 度,前臂向外转到底停一下,别用腰和肩代偿。",
+    searchTerms: ["肩外旋", "古巴旋转", "肩袖训练"],
+  },
   // ---- 手臂 ----
   {
     name: "二头弯举",

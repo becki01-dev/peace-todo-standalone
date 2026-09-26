@@ -162,6 +162,17 @@ describe("历史动作 → catalog 精确匹配", () => {
     expect(resolveCatalogExercise("卷腹提腿", FIXTURE_DICT)?.name).toBe("前臂支撑举腿");
   });
 
+  it("肩外旋:标准学名/古巴旋转都归到哑铃肩外旋,主要肌肉是肩袖", () => {
+    const entry = find("哑铃肩外旋");
+    expect(entry.primaryMuscles).toEqual(["rotator_cuff"]);
+    expect(entry.secondaryMuscles).toContain("delts_rear");
+    expect(resolveCatalogExercise("90-Degree Abducted Dumbbell External Rotation", FIXTURE_DICT)?.name).toBe(
+      "哑铃肩外旋",
+    );
+    expect(resolveCatalogExercise("Cuban Rotation", FIXTURE_DICT)?.name).toBe("哑铃肩外旋");
+    expect(resolveCatalogExercise("肩外旋", FIXTURE_DICT)?.name).toBe("哑铃肩外旋");
+  });
+
   it("lookup 可复用,匹配结果稳定", () => {
     const lookup = buildCatalogLookup(FIXTURE_DICT);
     expect(resolveCatalogExercise("pull-up", FIXTURE_DICT, lookup)?.name).toBe("引体向上");

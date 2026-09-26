@@ -14,7 +14,7 @@ const catalogNames = new Set(EXERCISE_CATALOG.map((entry) => entry.name));
 const mediaEntries = Object.entries(EXERCISE_MEDIA);
 
 /** 上游没有插画的动作,允许缺席;新增动作要么配图,要么加进这里 */
-const ALLOWED_WITHOUT_MEDIA = new Set(["颈部屈伸"]);
+const ALLOWED_WITHOUT_MEDIA = new Set(["颈部屈伸", "哑铃肩外旋"]);
 
 const assetDir = path.resolve(process.cwd(), "public/exercises");
 

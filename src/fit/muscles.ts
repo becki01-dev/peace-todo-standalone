@@ -54,6 +54,7 @@ export type MuscleId =
   | "delts_front"
   | "delts_side"
   | "delts_rear"
+  | "rotator_cuff"
   | "biceps"
   | "triceps"
   | "forearms"
@@ -96,6 +97,15 @@ export const MUSCLES: Record<MuscleId, MuscleMeta> = {
   delts_front: { id: "delts_front", label: "三角肌前束", shortLabel: "前束", group: "shoulders", bodyPart: "shoulders" },
   delts_side: { id: "delts_side", label: "三角肌中束", shortLabel: "中束", group: "shoulders", bodyPart: "shoulders" },
   delts_rear: { id: "delts_rear", label: "三角肌后束", shortLabel: "后束", group: "shoulders", bodyPart: "shoulders" },
+  rotator_cuff: {
+    id: "rotator_cuff",
+    label: "肩袖(冈下肌/小圆肌)",
+    shortLabel: "肩袖",
+    group: "shoulders",
+    bodyPart: "shoulders",
+    // 康复/预hab 类动作,目录里目前只有肩外旋;不强制至少 2 个主要动作
+    optional: true,
+  },
   biceps: { id: "biceps", label: "肱二头肌", shortLabel: "肱二头肌", group: "arms", bodyPart: "arms" },
   triceps: { id: "triceps", label: "肱三头肌", shortLabel: "肱三头肌", group: "arms", bodyPart: "arms" },
   forearms: { id: "forearms", label: "前臂", shortLabel: "前臂", group: "arms", bodyPart: "arms" },
