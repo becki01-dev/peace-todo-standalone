@@ -19,10 +19,12 @@ export const EXERCISE_MEDIA_CREDIT = {
 export interface ExerciseMedia {
   /** public/exercises/<slug>/ 目录名,与上游 manifest 的 slug 一致 */
   slug: string;
-  /** 上游动作名,用于重新拉取时精确定位 */
+  /** 上游动作名,用于重新拉取时精确定位;自绘素材为 "hand-drawn" */
   source: string;
   /** 可用帧数(上游每个动作 3 帧) */
   frames: number;
+  /** hand-drawn = 本仓库自绘(上游没有该动作的插画),不参与上游校验/下载 */
+  origin?: "hand-drawn";
   /** 与上游动作不完全一致时的说明(器械/姿势差异) */
   note?: string;
 }
@@ -61,6 +63,13 @@ export const EXERCISE_MEDIA: Record<string, ExerciseMedia> = {
   侧平举: { slug: "lateral-raise", source: "Lateral Raise", frames: 3 },
   绳索侧平举: { slug: "cable-lateral-raise", source: "Cable Lateral Raise", frames: 3 },
   反向飞鸟: { slug: "rear-delt-fly", source: "Rear Delt Fly", frames: 3 },
+  哑铃肩外旋: {
+    slug: "shoulder-external-rotation",
+    source: "hand-drawn",
+    frames: 2,
+    origin: "hand-drawn",
+    note: "上游插画库没有肩外旋/古巴旋转,本图为项目自绘线稿(见 scripts/draw-shoulder-external-rotation.mjs)。",
+  },
   // ---- 手臂 ----
   二头弯举: { slug: "bicep-curl", source: "Bicep Curl", frames: 3 },
   锤式弯举: { slug: "hammer-curl", source: "Hammer Curl", frames: 3 },

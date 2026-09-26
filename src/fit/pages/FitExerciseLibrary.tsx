@@ -601,17 +601,21 @@ const ExerciseMediaDialog = ({
           {media.note && <p className="text-[11px] text-fit-muted leading-relaxed">说明:{media.note}</p>}
 
           <div className="flex flex-col gap-2 pt-1 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-[10px] text-fit-muted leading-relaxed">
-              动作示意:{credit.creator} / {credit.origin},{" "}
-              <a
-                href={credit.licenseUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="underline hover:text-fit-foreground"
-              >
-                {credit.license}
-              </a>
-            </p>
+            {media.origin === "hand-drawn" ? (
+              <p className="text-[10px] text-fit-muted leading-relaxed">动作示意:本项目自绘线稿</p>
+            ) : (
+              <p className="text-[10px] text-fit-muted leading-relaxed">
+                动作示意:{credit.creator} / {credit.origin},{" "}
+                <a
+                  href={credit.licenseUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="underline hover:text-fit-foreground"
+                >
+                  {credit.license}
+                </a>
+              </p>
+            )}
             <AddButton name={entry.name} selected={selected} onToggle={onToggle} />
           </div>
         </div>

@@ -4,6 +4,7 @@
 // 上游若改名,脚本会直接报错,不会静默写错图。
 
 import fs from "node:fs/promises";
+import { existsSync } from "node:fs";
 import path from "node:path";
 
 const REPO_RAW = "https://raw.githubusercontent.com/bryllim/workout-guide/main/packages/workout-guide";
@@ -13,11 +14,18 @@ const CONCURRENCY = 6;
 
 const readMapping = async () => {
   const source = await fs.readFile(MEDIA_TS, "utf8");
-  const re = /([^\s{}:]+):\s*\{\s*slug:\s*"([^"]+)",\s*source:\s*"([^"]+)",\s*frames:\s*(\d+)/g;
+  const re = /([^\s{}:]+):\s*\{\s*slug:\s*"([^"]+)",\s*source:\s*"([^"]+)",\s*frames:\s*(\d+)([^}]*)\}/g;
   const entries = [];
   let match;
   while ((match = re.exec(source))) {
-    entries.push({ zh: match[1], slug: match[2], source: match[3], frames: Number(match[4]) });
+    entries.push({
+      zh: match[1],
+      slug: match[2],
+      source: match[3],
+      frames: Number(match[4]),
+      // 自绘素材(origin: "hand-drawn")不由本脚本下载,只校验文件在不在
+      handDrawn: /origin:\s*"hand-drawn"/.test(match[5]),
+    });
   }
   if (entries.length === 0) throw new Error(`没有从 ${MEDIA_TS} 解析到任何映射`);
   return entries;
@@ -45,7 +53,20 @@ const main = async () => {
 
   // 一个 slug 可能被多个中文动作共用(如坐姿/屈膝提踵),按 slug 去重
   const bySlug = new Map();
+  const handDrawn = new Map();
   for (const entry of entries) {
+    if (entry.handDrawn) {
+      // 自绘素材:不下载,但要确认帧文件确实在仓库里
+      for (let frame = 1; frame <= entry.frames; frame += 1) {
+        const file = path.join(OUT_DIR, entry.slug, `frame-${frame}.svg`);
+        if (!existsSync(file)) {
+          throw new Error(`${entry.zh} 是自绘素材,但缺少 ${file}(跑 scripts/draw-*.mjs 生成)`);
+        }
+      }
+      if (!handDrawn.has(entry.slug)) handDrawn.set(entry.slug, [entry.zh]);
+      else handDrawn.get(entry.slug).push(entry.zh);
+      continue;
+    }
     const upstream = byName.get(entry.source);
     if (!upstream) throw new Error(`上游 manifest 找不到动作「${entry.source}」(${entry.zh})`);
     if (upstream.slug !== entry.slug) {
@@ -91,6 +112,8 @@ const main = async () => {
     "[CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/)。",
     "文件未做修改,按原样分发。",
     "",
+    "> 上游没有插画的动作用本仓库自绘线稿,见文末「本项目自绘」一节,不属于上述授权范围。",
+    "",
     "| slug | 上游动作 | 对应中文动作 | 上游来源 |",
     "| --- | --- | --- | --- |",
   ];
@@ -99,9 +122,18 @@ const main = async () => {
     lines.push(`| ${slug} | ${upstream.name} | ${zhNames.join(" / ")} | ${origin} |`);
   }
   lines.push("");
+  if (handDrawn.size > 0) {
+    lines.push("## 本项目自绘", "", "上游插画库没有这些动作,线稿由本仓库生成脚本产出,授权同本仓库。", "", "| slug | 对应中文动作 | 生成脚本 |", "| --- | --- | --- |");
+    for (const [slug, zhNames] of handDrawn) {
+      lines.push(`| ${slug} | ${zhNames.join(" / ")} | \`scripts/draw-${slug}.mjs\` |`);
+    }
+    lines.push("");
+  }
   await fs.writeFile(path.join(OUT_DIR, "ATTRIBUTION.md"), lines.join("\n"));
 
-  console.log(`动作 ${entries.length} 个 / 唯一插画 ${bySlug.size} 组 / 文件 ${jobs.length} 个`);
+  console.log(
+    `动作 ${entries.length} 个 / 上游插画 ${bySlug.size} 组 / 自绘 ${handDrawn.size} 组 / 下载文件 ${jobs.length} 个`,
+  );
   console.log(`总体积 ${(bytes / 1024 / 1024).toFixed(2)} MB`);
 };
 

@@ -201,4 +201,15 @@ describe("FitExerciseLibrary", () => {
     fireEvent.click(within(dialog).getByRole("button", { name: "加入 臀推" }));
     expect(screen.getByText(/已选 1 个动作/)).toBeInTheDocument();
   });
+
+  it("自绘素材显示自绘署名,不冒充上游素材", () => {
+    renderPage();
+    fireEvent.click(screen.getByRole("button", { name: "查看 哑铃肩外旋 示范图" }));
+
+    const dialog = screen.getByRole("dialog");
+    const image = within(dialog).getByAltText("哑铃肩外旋 动作示范");
+    expect(image.getAttribute("src")).toMatch(/^\/exercises\/shoulder-external-rotation\/frame-[12]\.svg$/);
+    expect(within(dialog).getByText(/本项目自绘线稿/)).toBeInTheDocument();
+    expect(within(dialog).queryByText(/CC BY-SA/)).not.toBeInTheDocument();
+  });
 });

@@ -14,7 +14,7 @@ const catalogNames = new Set(EXERCISE_CATALOG.map((entry) => entry.name));
 const mediaEntries = Object.entries(EXERCISE_MEDIA);
 
 /** 上游没有插画的动作,允许缺席;新增动作要么配图,要么加进这里 */
-const ALLOWED_WITHOUT_MEDIA = new Set(["颈部屈伸", "哑铃肩外旋"]);
+const ALLOWED_WITHOUT_MEDIA = new Set(["颈部屈伸"]);
 
 const assetDir = path.resolve(process.cwd(), "public/exercises");
 
@@ -60,6 +60,17 @@ describe("EXERCISE_MEDIA", () => {
     expect(mediaForExercise("臀推")?.slug).toBe("hip-thrust");
     expect(mediaForExercise("颈部屈伸")).toBeUndefined();
     expect(mediaForExercise("不存在的动作")).toBeUndefined();
+  });
+
+  it("自绘素材标了 origin,且不冒充上游来源", () => {
+    const media = mediaForExercise("哑铃肩外旋");
+    expect(media?.origin).toBe("hand-drawn");
+    expect(media?.frames).toBe(2);
+    expect(media?.source).toBe("hand-drawn");
+    // 只有自绘素材允许 source 不是真实上游动作名
+    mediaEntries
+      .filter(([, m]) => m.origin !== "hand-drawn")
+      .forEach(([name, m]) => expect(m.source, name).not.toBe("hand-drawn"));
   });
 
   it("署名信息含作者与许可(CC BY-SA 4.0 要求)", () => {

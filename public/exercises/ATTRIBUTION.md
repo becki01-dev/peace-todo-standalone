@@ -5,6 +5,8 @@
 [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/)。
 文件未做修改,按原样分发。
 
+> 上游没有插画的动作用本仓库自绘线稿,见文末「本项目自绘」一节,不属于上述授权范围。
+
 | slug | 上游动作 | 对应中文动作 | 上游来源 |
 | --- | --- | --- | --- |
 | incline-bench-press | Incline Bench Press | 上斜卧推 | https://github.com/everkinetic/data/blob/main/dist/svg/0043-tension.svg |
@@ -72,3 +74,11 @@
 | calf-raise | Calf Raise | 提踵 | https://github.com/everkinetic/data |
 | kettlebell-swing | Kettlebell Swing | 壶铃摆荡 | https://github.com/everkinetic/data |
 | burpee | Burpee | 波比跳 | https://github.com/everkinetic/data |
+
+## 本项目自绘
+
+上游插画库没有这些动作,线稿由本仓库生成脚本产出,授权同本仓库。
+
+| slug | 对应中文动作 | 生成脚本 |
+| --- | --- | --- |
+| shoulder-external-rotation | 哑铃肩外旋 | `scripts/draw-shoulder-external-rotation.mjs` |
