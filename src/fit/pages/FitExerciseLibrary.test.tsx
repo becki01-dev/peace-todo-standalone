@@ -173,4 +173,32 @@ describe("FitExerciseLibrary", () => {
     expect(screen.getByText(/SESSION_STATE:/)).toHaveTextContent("哈克深蹲");
   });
 
+  it("有示范图的动作卡显示缩略图,没有的显示占位", () => {
+    renderPage();
+    const card = screen.getByText("臀推").closest("li") as HTMLElement;
+    const thumb = within(card).getByRole("button", { name: "查看 臀推 示范图" });
+    expect(thumb.querySelector("img")).toHaveAttribute("src", "/exercises/hip-thrust/frame-1.svg");
+
+    const neckCard = screen.getByText("颈部屈伸").closest("li") as HTMLElement;
+    expect(within(neckCard).queryByRole("button", { name: /示范图/ })).not.toBeInTheDocument();
+  });
+
+  it("点缩略图打开示范弹窗,含大图、要点与来源署名", () => {
+    renderPage();
+    fireEvent.click(screen.getByRole("button", { name: "查看 臀推 示范图" }));
+
+    const dialog = screen.getByRole("dialog");
+    const image = within(dialog).getByAltText("臀推 动作示范");
+    expect(image.getAttribute("src")).toMatch(/^\/exercises\/hip-thrust\/frame-[123]\.svg$/);
+    expect(within(dialog).getByText(/上背靠凳/)).toBeInTheDocument();
+    expect(within(dialog).getByText(/CC BY-SA 4\.0/)).toBeInTheDocument();
+  });
+
+  it("弹窗里也能加入本次训练", () => {
+    renderPage();
+    fireEvent.click(screen.getByRole("button", { name: "查看 臀推 示范图" }));
+    const dialog = screen.getByRole("dialog");
+    fireEvent.click(within(dialog).getByRole("button", { name: "加入 臀推" }));
+    expect(screen.getByText(/已选 1 个动作/)).toBeInTheDocument();
+  });
 });

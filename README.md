@@ -54,6 +54,17 @@ VITE_SUPABASE_PUBLISHABLE_KEY="<anon-key>"
 - **数据备份**:旧站备份快照在 `scripts/lovable-export/backup-2026-08-06.json`(gitignore 保护)
 - **迁移脚本**:`scripts/lovable-export/` 下的 check-users.mjs 等工具使用 DB 密码,不入库
 
+## 动作示范图
+
+动作参考页(`/fit/library`)的缩略图与弹窗大图来自 `public/exercises/<slug>/frame-{1..3}.svg`。
+
+- 素材来源:[workout-guide](https://github.com/bryllim/workout-guide)(作者 Bryl Lim),原图 [Everkinetic](https://github.com/everkinetic/data),**CC BY-SA 4.0**
+- 署名与逐动作来源:`public/exercises/ATTRIBUTION.md`;弹窗页脚也显示署名
+- 映射表:`src/fit/exerciseMedia.ts`(中文动作名 → 上游 slug),覆盖缺口由 `src/fit/exerciseMedia.test.ts` 守住
+- 重新拉取/新增动作:`node scripts/fetch-exercise-images.mjs`(上游改名会直接报错,不会静默写错图)
+
+新增动作时:`exerciseMedia.ts` 加一行 → 跑脚本 → 测试会检查每一帧文件确实存在。
+
 ## 相关链接
 
 - 新 app:https://peace-todo-standalone.vercel.app

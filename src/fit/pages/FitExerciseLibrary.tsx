@@ -1,10 +1,17 @@
 // 只读动作参考页:按部位/肌肉/搜索查动作,展示主要/次要肌肉、器械、模式与要点。
 // 历史动作会先尝试精确映射到 catalog;匹配不到时作为「历史动作」展示,不参与肌肉筛选。
-import { useMemo, useState, type ReactNode } from "react";
+// 有示范图的动作在卡片左侧显示缩略图,点开弹窗看三帧循环。
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
-import { Check, Plus, Search } from "lucide-react";
+import { Check, Dumbbell, Plus, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { useExerciseDict } from "../useExerciseDict";
 import { useExerciseHistory } from "../useExerciseHistory";
@@ -16,9 +23,16 @@ import {
   entriesForGroup,
   entriesForMuscle,
   exerciseMatchesQuery,
+  findCatalogExercise,
   resolveCatalogExercise,
   type ExerciseCatalogEntry,
 } from "../exerciseCatalog";
+import {
+  EXERCISE_MEDIA_CREDIT,
+  exerciseFrameSrc,
+  mediaForExercise,
+  type ExerciseMedia,
+} from "../exerciseMedia";
 import { exerciseSearchMatch, type ExerciseDict, type ExerciseUsage } from "../exerciseLib";
 import {
   MUSCLES,
@@ -72,6 +86,7 @@ const FitExerciseLibrary = () => {
   const [group, setGroup] = useState<MuscleGroupId | null>(null);
   const [muscle, setMuscle] = useState<MuscleId | null>(null);
   const [selectedNames, setSelectedNames] = useState<string[]>([]);
+  const [mediaName, setMediaName] = useState<string | null>(null);
   const [hideRecent, setHideRecent] = useState(false);
   const [onlyMine, setOnlyMine] = useState(false);
   const [onlyUntrained, setOnlyUntrained] = useState(false);
@@ -205,6 +220,9 @@ const FitExerciseLibrary = () => {
           ? MUSCLE_GROUP_LABELS[group]
           : "全部动作";
 
+  const mediaEntry = mediaName ? findCatalogExercise(mediaName) : undefined;
+  const mediaDetail = mediaEntry ? mediaForExercise(mediaEntry.name) : undefined;
+
   return (
     <div className={cn("space-y-4", selectedNames.length > 0 && "pb-24")}>
       <section className="p-4 rounded-xl bg-fit-card border border-fit-border space-y-3">
@@ -261,7 +279,7 @@ const FitExerciseLibrary = () => {
         )}
 
         <p className="text-[11px] text-fit-muted leading-relaxed">
-          主要肌肉用于筛选;次要肌肉在动作卡里展示。历史动作会尽量匹配标准动作,匹配不到时只显示动作名,不参与肌肉筛选。
+          主要肌肉用于筛选;次要肌肉在动作卡里展示。点卡片左侧缩略图看示范图。历史动作会尽量匹配标准动作,匹配不到时只显示动作名,不参与肌肉筛选。
         </p>
       </section>
 
@@ -292,6 +310,7 @@ const FitExerciseLibrary = () => {
                 showGroup={!group}
                 selected={selectedNames.includes(name)}
                 onToggle={() => toggleSelection(name)}
+                onOpenMedia={() => setMediaName(name)}
               />
             );
           })}
@@ -317,6 +336,16 @@ const FitExerciseLibrary = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {mediaEntry && mediaDetail && (
+        <ExerciseMediaDialog
+          entry={mediaEntry}
+          media={mediaDetail}
+          selected={selectedNames.includes(mediaEntry.name)}
+          onToggle={() => toggleSelection(mediaEntry.name)}
+          onClose={() => setMediaName(null)}
+        />
       )}
     </div>
   );
@@ -352,12 +381,14 @@ const ExerciseCard = ({
   showGroup,
   selected,
   onToggle,
+  onOpenMedia,
 }: {
   item: LibraryItem;
   dict: ExerciseDict;
   showGroup: boolean;
   selected: boolean;
   onToggle: () => void;
+  onOpenMedia: () => void;
 }) => {
   const recent = recentLabelFor(item.usage);
   const countLabel = item.usage && item.usage.count > 1 ? "做过 " + item.usage.count + " 次" : null;
@@ -391,33 +422,201 @@ const ExerciseCard = ({
 
   const { entry } = item;
   const groupLabel = MUSCLE_GROUP_LABELS[MUSCLES[entry.primaryMuscles[0]].group];
+  const media = mediaForExercise(entry.name);
   return (
-    <li className="p-4 rounded-xl bg-fit-card border border-fit-border space-y-2.5">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-        <div className="min-w-0">
-          <h3 className="text-sm font-semibold text-fit-foreground">{entry.name}</h3>
-          <p className="text-xs text-fit-muted">{entry.en}</p>
+    <li className="p-4 rounded-xl bg-fit-card border border-fit-border">
+      <div className="flex gap-3">
+        <ExerciseThumb name={entry.name} media={media} onOpen={onOpenMedia} />
+        <div className="min-w-0 flex-1 space-y-2.5">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+            <div className="min-w-0">
+              <h3 className="text-sm font-semibold text-fit-foreground">{entry.name}</h3>
+              <p className="text-xs text-fit-muted">{entry.en}</p>
+            </div>
+            <div className="flex flex-wrap gap-1 sm:justify-end sm:shrink-0">
+              {recent && <Tag tone={recent === "30 天没练" ? "accent" : "muted"}>{recent}</Tag>}
+              {countLabel && <Tag>{countLabel}</Tag>}
+              {showGroup && <Tag>{groupLabel}</Tag>}
+              <Tag>{EQUIPMENT_LABELS[entry.equipment]}</Tag>
+              <Tag>{MOVEMENT_PATTERN_LABELS[entry.pattern]}</Tag>
+            </div>
+          </div>
+
+          <MuscleRow label="主要" muscles={entry.primaryMuscles} primary />
+          {entry.secondaryMuscles.length > 0 && (
+            <MuscleRow label="次要" muscles={entry.secondaryMuscles} />
+          )}
+
+          {entry.tips && <p className="text-xs text-fit-muted leading-relaxed">{entry.tips}</p>}
+
+          <div className="flex items-center justify-end pt-0.5">
+            <AddButton name={entry.name} selected={selected} onToggle={onToggle} />
+          </div>
         </div>
-        <div className="flex flex-wrap gap-1 sm:justify-end sm:shrink-0">
-          {recent && <Tag tone={recent === "30 天没练" ? "accent" : "muted"}>{recent}</Tag>}
-          {countLabel && <Tag>{countLabel}</Tag>}
-          {showGroup && <Tag>{groupLabel}</Tag>}
-          <Tag>{EQUIPMENT_LABELS[entry.equipment]}</Tag>
-          <Tag>{MOVEMENT_PATTERN_LABELS[entry.pattern]}</Tag>
-        </div>
-      </div>
-
-      <MuscleRow label="主要" muscles={entry.primaryMuscles} primary />
-      {entry.secondaryMuscles.length > 0 && (
-        <MuscleRow label="次要" muscles={entry.secondaryMuscles} />
-      )}
-
-      {entry.tips && <p className="text-xs text-fit-muted leading-relaxed">{entry.tips}</p>}
-
-      <div className="flex items-center justify-end pt-0.5">
-        <AddButton name={entry.name} selected={selected} onToggle={onToggle} />
       </div>
     </li>
+  );
+};
+
+/** 卡片左侧缩略图:有示范图时可点开大图,没有则显示占位图标 */
+const ExerciseThumb = ({
+  name,
+  media,
+  onOpen,
+}: {
+  name: string;
+  media?: ExerciseMedia;
+  onOpen: () => void;
+}) => {
+  if (!media) {
+    return (
+      <div
+        aria-hidden="true"
+        className="w-16 h-16 shrink-0 rounded-lg bg-fit-surface border border-fit-border flex items-center justify-center"
+      >
+        <Dumbbell className="w-5 h-5 text-fit-muted/70" />
+      </div>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      aria-label={"查看 " + name + " 示范图"}
+      className="w-16 h-16 shrink-0 rounded-lg bg-fit-surface border border-fit-border overflow-hidden flex items-center justify-center transition-smooth hover:border-fit-accent/60"
+    >
+      <img
+        src={exerciseFrameSrc(media.slug, 1)}
+        alt=""
+        loading="lazy"
+        decoding="async"
+        width={64}
+        height={64}
+        className="w-full h-full object-contain p-1 opacity-90"
+      />
+    </button>
+  );
+};
+
+/** 弹窗里循环播放的帧序号:1→2→3→2→1(比直接跳回第一帧更像一次完整动作) */
+const cycleIndex = (step: number, frames: number): number => {
+  if (frames <= 1) return 0;
+  const period = 2 * (frames - 1);
+  const position = step % period;
+  return position < frames ? position : period - position;
+};
+
+const prefersReducedMotion = (): boolean =>
+  typeof window !== "undefined" &&
+  typeof window.matchMedia === "function" &&
+  window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+const useFrameCycle = (frames: number, intervalMs = 700): number => {
+  const [step, setStep] = useState(0);
+  const [reduced, setReduced] = useState(prefersReducedMotion);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function") return;
+    const query = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const onChange = () => setReduced(query.matches);
+    query.addEventListener?.("change", onChange);
+    return () => query.removeEventListener?.("change", onChange);
+  }, []);
+
+  useEffect(() => {
+    if (reduced || frames <= 1) return;
+    const timer = window.setInterval(() => setStep((prev) => prev + 1), intervalMs);
+    return () => window.clearInterval(timer);
+  }, [frames, intervalMs, reduced]);
+
+  return reduced ? 0 : cycleIndex(step, frames);
+};
+
+/** 动作示范弹窗:大图循环播放 + 肌肉/器械/要点 + 加入本次训练 */
+const ExerciseMediaDialog = ({
+  entry,
+  media,
+  selected,
+  onToggle,
+  onClose,
+}: {
+  entry: ExerciseCatalogEntry;
+  media: ExerciseMedia;
+  selected: boolean;
+  onToggle: () => void;
+  onClose: () => void;
+}) => {
+  const frameIndex = useFrameCycle(media.frames);
+  const credit = EXERCISE_MEDIA_CREDIT;
+
+  return (
+    <Dialog
+      open
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+    >
+      <DialogContent className="max-w-md gap-0 p-0 bg-fit-card border-fit-border text-fit-foreground">
+        <div className="p-4 pr-10 space-y-1">
+          <DialogTitle className="text-base font-semibold text-fit-foreground">{entry.name}</DialogTitle>
+          <DialogDescription className="text-xs text-fit-muted">
+            {entry.en} · 示范图第 {frameIndex + 1}/{media.frames} 帧
+          </DialogDescription>
+        </div>
+
+        <div className="px-4">
+          <div className="h-56 sm:h-72 rounded-xl bg-fit-surface border border-fit-border overflow-hidden flex items-center justify-center">
+            <img
+              src={exerciseFrameSrc(media.slug, frameIndex + 1)}
+              alt={entry.name + " 动作示范"}
+              className="w-full h-full object-contain p-3"
+            />
+          </div>
+          {media.frames > 1 && (
+            <div className="flex items-center justify-center gap-1.5 pt-2" aria-hidden="true">
+              {Array.from({ length: media.frames }, (_, index) => (
+                <span
+                  key={index}
+                  className={cn(
+                    "w-1.5 h-1.5 rounded-full",
+                    index === frameIndex ? "bg-fit-accent" : "bg-fit-border",
+                  )}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="p-4 space-y-2.5">
+          <div className="flex flex-wrap gap-1">
+            <Tag>{EQUIPMENT_LABELS[entry.equipment]}</Tag>
+            <Tag>{MOVEMENT_PATTERN_LABELS[entry.pattern]}</Tag>
+          </div>
+          <MuscleRow label="主要" muscles={entry.primaryMuscles} primary />
+          {entry.secondaryMuscles.length > 0 && (
+            <MuscleRow label="次要" muscles={entry.secondaryMuscles} />
+          )}
+          {entry.tips && <p className="text-xs text-fit-muted leading-relaxed">{entry.tips}</p>}
+          {media.note && <p className="text-[11px] text-fit-muted leading-relaxed">说明:{media.note}</p>}
+
+          <div className="flex flex-col gap-2 pt-1 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-[10px] text-fit-muted leading-relaxed">
+              动作示意:{credit.creator} / {credit.origin},{" "}
+              <a
+                href={credit.licenseUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="underline hover:text-fit-foreground"
+              >
+                {credit.license}
+              </a>
+            </p>
+            <AddButton name={entry.name} selected={selected} onToggle={onToggle} />
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 };
 
